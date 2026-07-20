@@ -1,20 +1,67 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+
+    <!--
+        Inherit from the EasyTravel parent. This gives us:
+        1. All dependency versions (via the imported Spring Boot 4.1.0 BOM)
+        2. Shared properties (Java 26 compiler settings)
+        3. Plugin defaults (via pluginManagement)
+        Adjust groupId/artifactId/version to match your actual parent coordinates.
+    -->
     <parent>
         <groupId>com.easytravel</groupId>
-        <artifactId>EasyTravel</artifactId>
-        <version>1.0-SNAPSHOT</version>
+        <artifactId>easytravel-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
+    <!-- groupId and version are inherited from the parent.
+         artifactId is the only coordinate a child MUST declare.
+         <packaging> defaults to "jar" — exactly what a runnable service needs. -->
     <artifactId>booking-service</artifactId>
+    <name>EasyTravel :: Booking Service</name>
+    <description>Owns the booking lifecycle: create, track, and confirm bookings</description>
 
-    <properties>
-        <maven.compiler.source>26</maven.compiler.source>
-        <maven.compiler.target>26</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
+    <dependencies>
+        <!-- REST layer: Spring MVC + embedded Tomcat + Jackson for JSON.
+             No <version> tag — the parent's BOM is the single source of truth. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
 
+        <!-- Persistence layer: Spring Data JPA + Hibernate ORM + HikariCP pool.
+             The actual database DRIVER (H2/PostgreSQL) arrives in Phase 2 —
+             we add dependencies only when the step that uses them arrives. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!-- Test toolkit: JUnit 5, AssertJ, Mockito, Spring's test support.
+             "test" scope keeps it OFF the runtime classpath and out of the final jar. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Repackages the plain jar into a self-contained executable "fat jar"
+                 (app + all dependencies + embedded server). This is what makes each
+                 microservice independently deployable — and Docker-ready in Phase 4.
+                 Version and execution config are inherited from the parent's
+                 pluginManagement (see the parent check below). -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
 </project>
