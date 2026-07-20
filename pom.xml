@@ -10,6 +10,7 @@
     <packaging>pom</packaging>
     <modules>
         <module>common</module>
+        <module>inventory-service</module>
         <module>booking-service</module>
         <module>payment-service</module>
     </modules>

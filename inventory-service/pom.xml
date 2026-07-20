@@ -12,19 +12,26 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>payment-service</artifactId>
-    <name>EasyTravel :: Payment Service</name>
-    <description>Processes payments for bookings (mocked gateway integration)</description>
+    <artifactId>inventory-service</artifactId>
+    <name>EasyTravel :: Inventory Service</name>
+    <description>Sources flight availability from an external provider and ranks the best options</description>
 
     <dependencies>
+        <!-- REST layer: this service EXPOSES a search API and (in Phase 2.1)
+             CONSUMES an external flight API. Web gives us both the server side
+             and RestClient/RestTemplate for the outbound call. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+
+        <!-- Persistence layer. Included per the roadmap, but see the note below —
+             inventory may not actually need a database. Flagging, not deciding. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
