@@ -5,22 +5,28 @@ spring:
   application:
     name: booking-service
 
-  # H2 in-memory database. 'jdbc:h2:mem:bookingdb' lives in RAM and vanishes on shutdown
-  # — perfect for development. DB_CLOSE_DELAY=-1 keeps it alive as long as the app runs.
   datasource:
     url: jdbc:h2:mem:bookingdb;DB_CLOSE_DELAY=-1
     driver-class-name: org.h2.Driver
     username: sa
     password: ""
 
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+
   jpa:
     hibernate:
-      # 'update' lets Hibernate auto-create/alter tables from your @Entity classes.
-      # Great for dev; in production you'd use a migration tool (Flyway/Liquibase) instead.
       ddl-auto: update
-    show-sql: true          # logs the SQL Hibernate runs — great for learning what JPA does
+    show-sql: true
 
-  # Enables the H2 web console at http://localhost:8082/h2-console so you can SEE the data.
   h2:
     console:
       enabled: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/

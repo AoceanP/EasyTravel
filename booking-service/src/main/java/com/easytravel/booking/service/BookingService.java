@@ -58,4 +58,17 @@ public class BookingService {
         return bookingRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Booking not found: " + id));
     }
+
+    /**
+     * Flips a booking from PENDING to CONFIRMED. Called when a PaymentEvent arrives.
+     * Idempotent-ish: if already confirmed, this is harmless.
+     */
+    @Transactional
+    public void confirmBooking(String bookingId) {
+        Long id = Long.valueOf(bookingId);
+        Booking booking = bookingRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Booking not found: " + bookingId));
+        booking.setStatus(BookingStatus.CONFIRMED);
+        bookingRepository.save(booking);
+    }
 }

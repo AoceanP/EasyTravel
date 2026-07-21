@@ -1,0 +1,15 @@
+# The registry conventionally runs on 8761 — the de facto standard Eureka port.
+server:
+  port: 8761
+
+spring:
+  application:
+    name: discovery-server
+
+eureka:
+  client:
+    # The server is itself a Eureka client by default — but it shouldn't register with
+    # OR fetch from itself (it IS the registry). These two flags turn that self-referential
+    # behavior off. Classic gotcha: forget these and the log fills with connection errors.
+    register-with-eureka: false
+    fetch-registry: false

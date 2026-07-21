@@ -13,17 +13,19 @@
         <module>inventory-service</module>
         <module>booking-service</module>
         <module>payment-service</module>
+        <module>discovery-server</module>
     </modules>
 
     <properties>
         <maven.compiler.release>26</maven.compiler.release>
         <maven.compiler.parameters>true</maven.compiler.parameters>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <spring-cloud.version>2025.1.2</spring-cloud.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
-            <!-- Spring Boot BOM (Bill of Materials) -->
+            <!-- existing Spring Boot BOM -->
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
@@ -31,6 +33,17 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+
+            <!-- NEW: Spring Cloud BOM — manages Eureka and other Cloud component versions. -->
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+
         </dependencies>
     </dependencyManagement>
 
