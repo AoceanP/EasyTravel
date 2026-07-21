@@ -5,13 +5,6 @@
                              http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <!--
-        Inherit from the EasyTravel parent. This gives us:
-        1. All dependency versions (via the imported Spring Boot 4.1.0 BOM)
-        2. Shared properties (Java 26 compiler settings)
-        3. Plugin defaults (via pluginManagement)
-        Adjust groupId/artifactId/version to match your actual parent coordinates.
-    -->
     <parent>
         <groupId>com.easytravel</groupId>
         <artifactId>EasyTravel</artifactId>
@@ -19,31 +12,40 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <!-- groupId and version are inherited from the parent.
-         artifactId is the only coordinate a child MUST declare.
-         <packaging> defaults to "jar" — exactly what a runnable service needs. -->
     <artifactId>booking-service</artifactId>
     <name>EasyTravel :: Booking Service</name>
     <description>Owns the booking lifecycle: create, track, and confirm bookings</description>
 
     <dependencies>
-        <!-- REST layer: Spring MVC + embedded Tomcat + Jackson for JSON.
-             No <version> tag — the parent's BOM is the single source of truth. -->
+        <!-- REST layer: Spring MVC + embedded Tomcat + Jackson for JSON. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
-        <!-- Persistence layer: Spring Data JPA + Hibernate ORM + HikariCP pool.
-             The actual database DRIVER (H2/PostgreSQL) arrives in Phase 2 —
-             we add dependencies only when the step that uses them arrives. -->
+        <!-- Persistence layer: Spring Data JPA + Hibernate ORM + HikariCP pool. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
 
-        <!-- Test toolkit: JUnit 5, AssertJ, Mockito, Spring's test support.
-             "test" scope keeps it OFF the runtime classpath and out of the final jar. -->
+        <!-- The shared kernel: gives us BookingRequestDTO and the GlobalExceptionHandler. -->
+        <dependency>
+            <groupId>com.easytravel</groupId>
+            <artifactId>common</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+
+        <!-- H2: an in-memory database. JPA needs a real DB to connect to; H2 lets us
+             build and test persistence with zero infrastructure. Swapped for PostgreSQL
+             in Phase 4's Docker setup. 'runtime' scope: needed to RUN, not to compile. -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Test toolkit: JUnit 5, AssertJ, Mockito, Spring's test support. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -53,11 +55,7 @@
 
     <build>
         <plugins>
-            <!-- Repackages the plain jar into a self-contained executable "fat jar"
-                 (app + all dependencies + embedded server). This is what makes each
-                 microservice independently deployable — and Docker-ready in Phase 4.
-                 Version and execution config are inherited from the parent's
-                 pluginManagement (see the parent check below). -->
+            <!-- Repackages into a self-contained executable fat jar; Docker-ready in Phase 4. -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>

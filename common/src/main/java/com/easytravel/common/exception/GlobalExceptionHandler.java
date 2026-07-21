@@ -21,11 +21,6 @@ import java.util.Map;
  * any @RestController in a service that component-scans this package is routed here,
  * turning stack traces into clean, consistent JSON. Because it lives in `common`,
  * all three services share ONE error-response shape for free.
- *
- * <p>IMPORTANT WIRING NOTE: a service only picks this up if Spring's component scan
- * reaches this package. The default @SpringBootApplication scan is limited to the
- * app's own package and below. We solve this cleanly in Phase 2 — see the note in
- * the response below.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler
@@ -40,7 +35,6 @@ public class GlobalExceptionHandler
     public ResponseEntity<Map<String, Object>> handleValidation(
             MethodArgumentNotValidException ex, WebRequest request)
     {
-
         Map<String, String> fieldErrors = new HashMap<>();
         ex.getBindingResult().getFieldErrors().forEach(error ->
                 fieldErrors.put(error.getField(), error.getDefaultMessage()));
@@ -56,7 +50,8 @@ public class GlobalExceptionHandler
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneric(Exception ex, WebRequest request)
     {
-        // In a real system you would log `ex` here at ERROR with a correlation id.
+        // TEMPORARY DEBUGGING: print the real cause to the console so we can see it.
+        // Remove before the phase is done; a real system logs at ERROR with a correlation id.
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", null);
     }
 
@@ -66,7 +61,6 @@ public class GlobalExceptionHandler
     private ResponseEntity<Map<String, Object>> build(
             HttpStatus status, String message, Map<String, String> details)
     {
-
         Map<String, Object> body = new HashMap<>();
         body.put("timestamp", Instant.now());
         body.put("status", status.value());
