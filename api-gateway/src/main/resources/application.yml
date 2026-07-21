@@ -1,0 +1,39 @@
+server:
+  port: 8080          # the single front door
+
+spring:
+  application:
+    name: api-gateway
+
+  cloud:
+    gateway:
+      server:
+        webflux:
+          # Auto-create routes from Eureka service names — optional convenience.
+          discovery:
+            locator:
+              enabled: true
+              lower-case-service-id: true
+          # Explicit routes: clearer and what we'll rely on.
+          routes:
+            - id: inventory-service
+              # lb:// means "load-balanced via Eureka" — resolve this service NAME
+              # through the registry rather than a hardcoded address.
+              uri: lb://inventory-service
+              predicates:
+                - Path=/api/flights/**
+
+            - id: booking-service
+              uri: lb://booking-service
+              predicates:
+                - Path=/api/bookings/**
+
+            - id: payment-service
+              uri: lb://payment-service
+              predicates:
+                - Path=/api/payments/**
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
