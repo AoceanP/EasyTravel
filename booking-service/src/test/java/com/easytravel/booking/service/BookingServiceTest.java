@@ -131,7 +131,7 @@ class BookingServiceTest
 
         assertThatThrownBy(() -> service.createBooking(request)).isInstanceOf(ResourceNotFoundException.class);
         verify(repository, never()).save(any());
-        verify(events, never()).publishEvent(any());
+        verify(events, never()).publishEvent(any(Object.class));
     }
 
     /**

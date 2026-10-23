@@ -150,6 +150,20 @@ public class GlobalExceptionHandler
     }
 
     /**
+     * WHAT:   A valid request the resource's current state does not allow.
+     * PRE:    a service threw ConflictException
+     * RETURN: 409 with the exception's message
+     *
+     * @param ex the exception
+     * @return the error response
+     */
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<Map<String, Object>> handleConflict(ConflictException ex)
+    {
+        return build(HttpStatus.CONFLICT, ex.getMessage(), null);
+    }
+
+    /**
      * WHAT:   A service this one depends on is down.
      * PRE:    a service threw ServiceUnavailableException
      * RETURN: 503, so the client knows to retry later

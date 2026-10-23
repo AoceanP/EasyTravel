@@ -51,7 +51,7 @@ public class Payment
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal amount;
 
-    /** WHAT: SUCCESS or FAILED. */
+    /** WHAT: SUCCESS, FAILED or REFUNDED. */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private PaymentStatus status;
@@ -62,6 +62,9 @@ public class Payment
     /** WHAT: when it was processed. */
     @Column(nullable = false)
     private Instant processedAt;
+
+    /** WHAT: when it was refunded, or null. */
+    private Instant refundedAt;
 
     /**
      * WHAT:   The no-argument constructor Hibernate needs.
@@ -91,6 +94,30 @@ public class Payment
         this.reason = reason;
         this.processedAt = processedAt;
     }
+
+    /**
+     * WHAT:   Records that the charge was refunded.
+     * WHY:    Only a successful charge can be refunded, and only once; the
+     *         check here backs up the one in PaymentService.
+     * PRE:    the status is SUCCESS
+     * POST:   the status is REFUNDED and refundedAt is set
+     * THROWS: IllegalStateException if the payment is not SUCCESS
+     *
+     * @param now the time of the refund
+     * @throws IllegalStateException if it cannot be refunded
+     */
+    public void markRefunded(Instant now)
+    {
+        if (status != PaymentStatus.SUCCESS)
+        {
+            throw new IllegalStateException("payment " + transactionId + " is " + status + "; only SUCCESS can be refunded");
+        }
+        this.status = PaymentStatus.REFUNDED;
+        this.refundedAt = now;
+    }
+
+    /** @return when it was refunded, or null */
+    public Instant getRefundedAt() { return refundedAt; }
 
     /** @return the database id */
     public Long getId() { return id; }

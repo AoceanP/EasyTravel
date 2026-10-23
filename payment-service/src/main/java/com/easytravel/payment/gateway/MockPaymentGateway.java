@@ -54,4 +54,26 @@ public class MockPaymentGateway implements PaymentGateway
         }
         return ChargeResult.approved();
     }
+
+    /**
+     * WHAT:   Approves every refund of a positive amount.
+     * WHY:    Refunds of real charges do not fail at a card processor in this
+     *         demo; the refund-failed path is still handled and tested.
+     * PRE:    none
+     * RETURN: approved, or declined for an invalid amount
+     *
+     * @param bookingId     the booking being cancelled
+     * @param transactionId the charge to refund
+     * @param amount        the amount to return
+     * @return the result
+     */
+    @Override
+    public ChargeResult refund(String bookingId, String transactionId, BigDecimal amount)
+    {
+        if (amount == null || amount.signum() <= 0)
+        {
+            return ChargeResult.declined("invalid amount");
+        }
+        return ChargeResult.approved();
+    }
 }

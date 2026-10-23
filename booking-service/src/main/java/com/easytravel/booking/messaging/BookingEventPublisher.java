@@ -2,6 +2,7 @@ package com.easytravel.booking.messaging;
 
 import com.easytravel.common.event.BookingCreatedEvent;
 import com.easytravel.common.event.MessagingConstants;
+import com.easytravel.common.event.RefundRequestedEvent;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
@@ -48,5 +49,20 @@ public class BookingEventPublisher
     {
         rabbitTemplate.convertAndSend(MessagingConstants.BOOKING_EXCHANGE,
                 MessagingConstants.BOOKING_CREATED_ROUTING_KEY, event);
+    }
+
+    /**
+     * WHAT:   Publishes a refund request to "booking.exchange" with key "booking.refund-requested".
+     * WHY:    After commit for the same reason: no refund for a cancellation that rolled back.
+     * PRE:    the cancellation's transaction committed
+     * POST:   the message is with RabbitMQ
+     *
+     * @param event the refund request
+     */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onRefundRequested(RefundRequestedEvent event)
+    {
+        rabbitTemplate.convertAndSend(MessagingConstants.BOOKING_EXCHANGE,
+                MessagingConstants.REFUND_REQUESTED_ROUTING_KEY, event);
     }
 }

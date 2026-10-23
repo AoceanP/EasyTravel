@@ -128,6 +128,67 @@ public class RabbitMQConfig
     }
 
     /**
+     * WHAT:   payment-service's queue of refunds to make (the cancellation saga).
+     * PRE:    none
+     * RETURN: the durable queue, dead-lettering rejected messages
+     *
+     * @return the queue
+     */
+    @Bean
+    public Queue refundRequestedQueue()
+    {
+        return QueueBuilder.durable(MessagingConstants.REFUND_REQUESTED_QUEUE)
+                .deadLetterExchange(MessagingConstants.DEAD_LETTER_EXCHANGE)
+                .deadLetterRoutingKey(MessagingConstants.REFUND_REQUESTED_DLQ)
+                .build();
+    }
+
+    /**
+     * WHAT:   Connects the queue to the booking exchange for "booking.refund-requested" messages.
+     * PRE:    both beans exist
+     * RETURN: the binding
+     *
+     * @param refundRequestedQueue the queue
+     * @param bookingExchange      the exchange
+     * @return the binding
+     */
+    @Bean
+    public Binding refundRequestedBinding(Queue refundRequestedQueue, TopicExchange bookingExchange)
+    {
+        return BindingBuilder.bind(refundRequestedQueue).to(bookingExchange)
+                .with(MessagingConstants.REFUND_REQUESTED_ROUTING_KEY);
+    }
+
+    /**
+     * WHAT:   Where rejected refund requests wait for a person.
+     * PRE:    none
+     * RETURN: the durable dead-letter queue
+     *
+     * @return the queue
+     */
+    @Bean
+    public Queue refundRequestedDeadLetterQueue()
+    {
+        return QueueBuilder.durable(MessagingConstants.REFUND_REQUESTED_DLQ).build();
+    }
+
+    /**
+     * WHAT:   Routes rejected refund requests into their dead-letter queue.
+     * PRE:    both beans exist
+     * RETURN: the binding
+     *
+     * @param refundRequestedDeadLetterQueue the dead-letter queue
+     * @param deadLetterExchange             the dead-letter exchange
+     * @return the binding
+     */
+    @Bean
+    public Binding refundRequestedDeadLetterBinding(Queue refundRequestedDeadLetterQueue, DirectExchange deadLetterExchange)
+    {
+        return BindingBuilder.bind(refundRequestedDeadLetterQueue).to(deadLetterExchange)
+                .with(MessagingConstants.REFUND_REQUESTED_DLQ);
+    }
+
+    /**
      * WHAT:   Sends and reads message bodies as JSON.
      * PRE:    none
      * RETURN: the Jackson 3 JSON converter

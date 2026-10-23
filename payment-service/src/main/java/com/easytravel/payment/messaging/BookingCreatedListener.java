@@ -19,6 +19,9 @@ import org.springframework.stereotype.Component;
 @Component
 public class BookingCreatedListener
 {
+    /** WHAT: the listener's id, so the demo controls can stop and start it. */
+    public static final String LISTENER_ID = "booking-created";
+
     /** WHAT: does the actual work. */
     private final PaymentService paymentService;
 
@@ -43,7 +46,7 @@ public class BookingCreatedListener
      *
      * @param event the new booking
      */
-    @RabbitListener(queues = MessagingConstants.BOOKING_CREATED_QUEUE)
+    @RabbitListener(id = LISTENER_ID, queues = MessagingConstants.BOOKING_CREATED_QUEUE)
     public void onBookingCreated(BookingCreatedEvent event)
     {
         try

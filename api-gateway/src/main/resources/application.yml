@@ -12,11 +12,12 @@ spring:
     gateway:
       server:
         webflux:
-          # Auto-create routes from Eureka service names — optional convenience.
+          # Off on purpose: the discovery locator would publish EVERY path of every
+          # service as /{service-name}/**, including internal and admin endpoints.
+          # Only the explicit routes below are exposed.
           discovery:
             locator:
-              enabled: true
-              lower-case-service-id: true
+              enabled: false
           # Explicit routes: clearer and what we'll rely on.
           routes:
             - id: inventory-service
@@ -37,6 +38,13 @@ spring:
                 - Path=/api/payments/**
 
 eureka:
+  instance:
+    # Heartbeat every 5 s (default 30 s). On a full restart a service can boot
+    # before Eureka does; its first registration then fails, and the next
+    # heartbeat is what registers it. 5 s instead of 30 s gets the stack serving
+    # in seconds. Expiry is scaled to match: 3 missed heartbeats.
+    lease-renewal-interval-in-seconds: 5
+    lease-expiration-duration-in-seconds: 15
   client:
     # Re-fetch the registry every 5 s (default 30 s), so a freshly started stack
     # routes requests within seconds instead of answering 503 for half a minute.

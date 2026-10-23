@@ -28,6 +28,7 @@ import java.util.UUID;
  *
  *         POST /api/bookings              create; the new booking starts PENDING
  *         GET  /api/bookings/{id}         one booking
+ *         POST /api/bookings/{id}/cancel  cancel a paid booking; it becomes CANCELLING, then CANCELLED
  *         GET  /api/bookings?userId=alice a customer's bookings
  *
  * @author AoceanP
@@ -83,6 +84,23 @@ public class BookingController
     public BookingResponseDTO getBooking(@PathVariable UUID id)
     {
         return BookingResponseDTO.from(bookingService.getBooking(id));
+    }
+
+    /**
+     * WHAT:   Cancels a paid booking and starts its refund.
+     * WHY:    202 Accepted, not 200: the cancellation has started but finishes
+     *         later, when payment-service reports the refund. The body is the
+     *         booking, now CANCELLING; the client follows it like a new booking.
+     * PRE:    id is a UUID (otherwise 400)
+     * RETURN: 202 with the booking; 404 if unknown; 409 if it cannot be cancelled now
+     *
+     * @param id the booking id
+     * @return the response
+     */
+    @PostMapping("/api/bookings/{id}/cancel")
+    public ResponseEntity<BookingResponseDTO> cancelBooking(@PathVariable UUID id)
+    {
+        return ResponseEntity.accepted().body(BookingResponseDTO.from(bookingService.cancelBooking(id)));
     }
 
     /**

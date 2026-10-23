@@ -2,6 +2,7 @@ package com.easytravel.payment.messaging;
 
 import com.easytravel.common.event.MessagingConstants;
 import com.easytravel.common.event.PaymentEvent;
+import com.easytravel.common.event.RefundEvent;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
@@ -43,5 +44,18 @@ public class PaymentEventPublisher
     public void onPaymentProcessed(PaymentEvent event)
     {
         rabbitTemplate.convertAndSend(MessagingConstants.PAYMENT_EXCHANGE, MessagingConstants.PAYMENT_ROUTING_KEY, event);
+    }
+
+    /**
+     * WHAT:   Publishes a refund result to "payment.exchange" with key "payment.refunded".
+     * PRE:    the refund's transaction committed
+     * POST:   the message is with RabbitMQ
+     *
+     * @param event the refund result
+     */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onRefundProcessed(RefundEvent event)
+    {
+        rabbitTemplate.convertAndSend(MessagingConstants.PAYMENT_EXCHANGE, MessagingConstants.REFUND_ROUTING_KEY, event);
     }
 }

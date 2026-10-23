@@ -44,6 +44,29 @@ public final class MessagingConstants
     /** WHAT: booking-service's dead-letter queue. */
     public static final String PAYMENT_DLQ = PAYMENT_QUEUE + ".dlq";
 
+    // ---- the cancellation saga ----------------------------------------------
+    //
+    // booking-service --booking.refund-requested--> [booking.exchange] --> payment.refund-requested.queue --> payment-service
+    // payment-service --payment.refunded--> [payment.exchange] --> booking.refund-completed.queue --> booking-service
+
+    /** WHAT: the routing key for "a customer cancelled; refund this booking". */
+    public static final String REFUND_REQUESTED_ROUTING_KEY = "booking.refund-requested";
+
+    /** WHAT: payment-service's queue of refunds to make. */
+    public static final String REFUND_REQUESTED_QUEUE = "payment.refund-requested.queue";
+
+    /** WHAT: its dead-letter queue. */
+    public static final String REFUND_REQUESTED_DLQ = REFUND_REQUESTED_QUEUE + ".dlq";
+
+    /** WHAT: the routing key for "a refund succeeded or failed". */
+    public static final String REFUND_ROUTING_KEY = "payment.refunded";
+
+    /** WHAT: booking-service's queue of refund results. */
+    public static final String REFUND_QUEUE = "booking.refund-completed.queue";
+
+    /** WHAT: its dead-letter queue. */
+    public static final String REFUND_DLQ = REFUND_QUEUE + ".dlq";
+
     /**
      * WHAT:   Blocks creating a MessagingConstants.
      * WHY:    It only holds constants.

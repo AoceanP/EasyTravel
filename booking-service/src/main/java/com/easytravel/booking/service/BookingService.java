@@ -8,6 +8,9 @@ import com.easytravel.common.dto.BookingRequestDTO;
 import com.easytravel.common.dto.FlightDTO;
 import com.easytravel.common.event.BookingCreatedEvent;
 import com.easytravel.common.event.PaymentEvent;
+import com.easytravel.common.event.RefundEvent;
+import com.easytravel.common.event.RefundRequestedEvent;
+import com.easytravel.common.exception.ConflictException;
 import com.easytravel.common.exception.ResourceNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -173,6 +176,88 @@ public class BookingService
         }
         log.info("booking {} is now {}", id, booking.getStatus());
         // no save() needed: the entity is managed, so the change is flushed when the transaction commits
+        return true;
+    }
+
+    /**
+     * WHAT:   Cancels a paid booking: marks it CANCELLING and asks payment for a refund.
+     * WHY:    The second saga. Like booking, cancelling never calls payment
+     *         directly: a RefundRequestedEvent goes out after commit, and the
+     *         refund result comes back as an event. IDEMPOTENT: cancelling a
+     *         booking that is already CANCELLING or CANCELLED returns it as it
+     *         is and starts no second refund, so a double click is harmless.
+     * PRE:    id is not null
+     * POST:   a CONFIRMED booking is CANCELLING, with a RefundRequestedEvent
+     *         queued for after commit
+     * RETURN: the booking in its new (or unchanged) state
+     * THROWS: ResourceNotFoundException if it does not exist;
+     *         ConflictException if it is PENDING (payment still running) or
+     *         PAYMENT_FAILED (never paid, so nothing to refund)
+     *
+     * @param id the booking id
+     * @return the booking
+     */
+    @Transactional
+    public Booking cancelBooking(UUID id)
+    {
+        Booking booking = getBooking(id);
+        switch (booking.getStatus())
+        {
+            case CANCELLING, CANCELLED ->
+            {
+                log.info("booking {} is already {}; nothing to do", id, booking.getStatus());
+                return booking;
+            }
+            case PENDING -> throw new ConflictException(
+                    "booking " + id + " is still waiting for payment; try again in a moment");
+            case PAYMENT_FAILED -> throw new ConflictException(
+                    "booking " + id + " was never paid, so there is nothing to cancel");
+            case CONFIRMED ->
+            {
+                booking.requestCancel(Instant.now(clock));
+                events.publishEvent(new RefundRequestedEvent(String.valueOf(id), booking.getTransactionId(),
+                        booking.getAgreedPrice()));
+                log.info("booking {} is now CANCELLING; refund of {} requested", id, booking.getAgreedPrice());
+                return booking;
+            }
+        }
+        throw new IllegalStateException("unknown status " + booking.getStatus());
+    }
+
+    /**
+     * WHAT:   Applies a refund result: CANCELLED on success, back to CONFIRMED otherwise.
+     * WHY:    IDEMPOTENT like applyPaymentResult: only a CANCELLING booking
+     *         changes, so a duplicate or late refund event is ignored.
+     * PRE:    event is not null
+     * POST:   a CANCELLING booking becomes CANCELLED (or CONFIRMED with a note)
+     * RETURN: true if the booking changed, false if the event was a duplicate
+     * THROWS: ResourceNotFoundException if no such booking exists
+     *
+     * @param event the refund result
+     * @return whether the booking changed
+     */
+    @Transactional
+    public boolean applyRefundResult(RefundEvent event)
+    {
+        UUID id = parseId(event.bookingId())
+                .orElseThrow(() -> new ResourceNotFoundException("booking id '" + event.bookingId() + "' is not a valid id"));
+        Booking booking = getBooking(id);
+
+        if (booking.getStatus() != BookingStatus.CANCELLING)
+        {
+            log.info("ignoring refund result for booking {}: it is {}", id, booking.getStatus());
+            return false;
+        }
+
+        if (event.success())
+        {
+            booking.markCancelled(Instant.now(clock));
+        }
+        else
+        {
+            booking.markRefundFailed(event.reason(), Instant.now(clock));
+        }
+        log.info("booking {} is now {}", id, booking.getStatus());
         return true;
     }
 

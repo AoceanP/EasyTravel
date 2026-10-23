@@ -36,6 +36,9 @@ public record PaymentResponseDTO(
         SUCCESS,
 
         /** WHAT: the charge was declined. */
-        FAILED
+        FAILED,
+
+        /** WHAT: the charge went through and was later refunded (the trip was cancelled). */
+        REFUNDED
     }
 }

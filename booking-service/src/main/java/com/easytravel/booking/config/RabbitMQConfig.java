@@ -130,6 +130,66 @@ public class RabbitMQConfig
     }
 
     /**
+     * WHAT:   booking-service's queue of refund results (the cancellation saga).
+     * WHY:    Durable with a dead-letter queue, like the payment-results queue.
+     * PRE:    none
+     * RETURN: the queue
+     *
+     * @return the queue
+     */
+    @Bean
+    public Queue refundQueue()
+    {
+        return QueueBuilder.durable(MessagingConstants.REFUND_QUEUE)
+                .deadLetterExchange(MessagingConstants.DEAD_LETTER_EXCHANGE)
+                .deadLetterRoutingKey(MessagingConstants.REFUND_DLQ)
+                .build();
+    }
+
+    /**
+     * WHAT:   Connects the queue to the payment exchange for "payment.refunded" messages.
+     * PRE:    both beans exist
+     * RETURN: the binding
+     *
+     * @param refundQueue     the queue
+     * @param paymentExchange the exchange
+     * @return the binding
+     */
+    @Bean
+    public Binding refundBinding(Queue refundQueue, TopicExchange paymentExchange)
+    {
+        return BindingBuilder.bind(refundQueue).to(paymentExchange).with(MessagingConstants.REFUND_ROUTING_KEY);
+    }
+
+    /**
+     * WHAT:   Where rejected refund results wait for a person.
+     * PRE:    none
+     * RETURN: the durable dead-letter queue
+     *
+     * @return the queue
+     */
+    @Bean
+    public Queue refundDeadLetterQueue()
+    {
+        return QueueBuilder.durable(MessagingConstants.REFUND_DLQ).build();
+    }
+
+    /**
+     * WHAT:   Routes rejected refund results into their dead-letter queue.
+     * PRE:    both beans exist
+     * RETURN: the binding
+     *
+     * @param refundDeadLetterQueue the dead-letter queue
+     * @param deadLetterExchange    the dead-letter exchange
+     * @return the binding
+     */
+    @Bean
+    public Binding refundDeadLetterBinding(Queue refundDeadLetterQueue, DirectExchange deadLetterExchange)
+    {
+        return BindingBuilder.bind(refundDeadLetterQueue).to(deadLetterExchange).with(MessagingConstants.REFUND_DLQ);
+    }
+
+    /**
      * WHAT:   Sends and reads message bodies as JSON.
      * WHY:    Readable in the RabbitMQ web console, and language-neutral;
      *         Java serialization would be binary and brittle.

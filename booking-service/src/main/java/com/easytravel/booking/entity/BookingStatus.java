@@ -5,10 +5,14 @@ package com.easytravel.booking.entity;
  * WHY:    An enum, not free text, makes the valid states a compile-time
  *         contract: nobody can store a typo like "PENDNIG".
  *
- *             PENDING --payment succeeded--> CONFIRMED
- *             PENDING --payment declined---> PAYMENT_FAILED
+ *             PENDING ----payment succeeded----> CONFIRMED
+ *             PENDING ----payment declined-----> PAYMENT_FAILED   (final)
+ *             CONFIRMED --customer cancels----> CANCELLING
+ *             CANCELLING --refund succeeded---> CANCELLED         (final)
+ *             CANCELLING --refund failed------> CONFIRMED         (the ticket stays valid)
  *
- *         Only PENDING can change; the other two are final.
+ *         Every move is checked in Booking, so a late or duplicated event
+ *         can never take a booking down a path it is not on.
  *
  * @author AoceanP
  */
@@ -21,5 +25,11 @@ public enum BookingStatus
     CONFIRMED,
 
     /** WHAT: the payment was declined; the booking will not happen. */
-    PAYMENT_FAILED
+    PAYMENT_FAILED,
+
+    /** WHAT: the customer cancelled; waiting for the refund. */
+    CANCELLING,
+
+    /** WHAT: cancelled and refunded. */
+    CANCELLED
 }

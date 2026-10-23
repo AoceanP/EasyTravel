@@ -24,6 +24,18 @@ public interface PaymentGateway
     ChargeResult charge(String bookingId, String userId, BigDecimal amount);
 
     /**
+     * WHAT:   Returns a charge to the customer's card.
+     * PRE:    transactionId is a successful charge; amount is what it charged
+     * RETURN: whether the refund went through, and why not if it failed
+     *
+     * @param bookingId     the booking being cancelled
+     * @param transactionId the charge to refund
+     * @param amount        the amount to return
+     * @return the result
+     */
+    ChargeResult refund(String bookingId, String transactionId, BigDecimal amount);
+
+    /**
      * WHAT:   The outcome of one charge.
      * WHY:    A plain boolean cannot say WHY a card was declined.
      *

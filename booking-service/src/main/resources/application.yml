@@ -43,6 +43,13 @@ easytravel:
     base-url: http://inventory-service   # a Eureka service NAME, resolved by the load balancer
 
 eureka:
+  instance:
+    # Heartbeat every 5 s (default 30 s). On a full restart a service can boot
+    # before Eureka does; its first registration then fails, and the next
+    # heartbeat is what registers it. 5 s instead of 30 s gets the stack serving
+    # in seconds. Expiry is scaled to match: 3 missed heartbeats.
+    lease-renewal-interval-in-seconds: 5
+    lease-expiration-duration-in-seconds: 15
   client:
     # Re-fetch the registry every 5 s (default 30 s), so a freshly started stack
     # routes requests within seconds instead of answering 503 for half a minute.

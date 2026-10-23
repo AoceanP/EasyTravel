@@ -113,7 +113,7 @@ class PaymentServiceTest
 
         assertThat(service.processBooking(new BookingCreatedEvent("7", "alice", new BigDecimal("525.00")))).isFalse();
         verify(repository, never()).save(any());
-        verify(events, never()).publishEvent(any());
+        verify(events, never()).publishEvent(any(Object.class));
     }
 
     /**

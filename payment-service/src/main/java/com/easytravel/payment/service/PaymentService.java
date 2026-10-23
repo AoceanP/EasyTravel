@@ -4,6 +4,8 @@ import com.easytravel.common.dto.PaymentResponseDTO;
 import com.easytravel.common.dto.PaymentResponseDTO.PaymentStatus;
 import com.easytravel.common.event.BookingCreatedEvent;
 import com.easytravel.common.event.PaymentEvent;
+import com.easytravel.common.event.RefundEvent;
+import com.easytravel.common.event.RefundRequestedEvent;
 import com.easytravel.common.exception.ResourceNotFoundException;
 import com.easytravel.payment.entity.Payment;
 import com.easytravel.payment.gateway.PaymentGateway;
@@ -99,6 +101,75 @@ public class PaymentService
         log.info("booking {}: payment {} {}", event.bookingId(), payment.getStatus(),
                 result.success() ? "" : "(" + result.reason() + ")");
         return true;
+    }
+
+    /**
+     * WHAT:   Refunds a cancelled booking's payment and announces the result.
+     * WHY:    The middle step of the cancellation saga. IDEMPOTENT: a payment
+     *         that is already REFUNDED is never refunded twice; the success is
+     *         simply announced again, which is harmless (booking-service ignores
+     *         it) and recovers the case where the first announcement was lost.
+     *         Every other case is answered with a failure event, so the
+     *         cancellation can never hang in CANCELLING.
+     * PRE:    event came from booking-service
+     * POST:   the payment is REFUNDED (if it was SUCCESS); a RefundEvent is
+     *         queued for after commit in every case
+     * RETURN: true if money was returned now, false otherwise
+     *
+     * @param event the refund request
+     * @return whether a refund was made now
+     */
+    @Transactional
+    public boolean processRefund(RefundRequestedEvent event)
+    {
+        Payment payment = paymentRepository.findByBookingId(event.bookingId()).orElse(null);
+        if (payment == null)
+        {
+            announceRefund(event, false, "no payment found for this booking");
+            return false;
+        }
+        switch (payment.getStatus())
+        {
+            case REFUNDED ->
+            {
+                log.info("booking {}: already refunded; announcing it again", event.bookingId());
+                announceRefund(event, true, null);
+                return false;
+            }
+            case FAILED ->
+            {
+                announceRefund(event, false, "the payment was declined, so there is nothing to refund");
+                return false;
+            }
+            case SUCCESS ->
+            {
+                ChargeResult result = paymentGateway.refund(event.bookingId(), payment.getTransactionId(), payment.getAmount());
+                if (result.success())
+                {
+                    payment.markRefunded(Instant.now(clock));
+                }
+                announceRefund(event, result.success(), result.reason());
+                log.info("booking {}: refund of {} {}", event.bookingId(), payment.getAmount(),
+                        result.success() ? "sent" : "failed (" + result.reason() + ")");
+                return result.success();
+            }
+        }
+        throw new IllegalStateException("unknown payment status " + payment.getStatus());
+    }
+
+    /**
+     * WHAT:   Queues a RefundEvent for after this transaction commits.
+     * PRE:    called inside a transaction
+     * POST:   the event will be published if the transaction commits
+     *
+     * @param request the refund request being answered
+     * @param success whether the refund went through
+     * @param reason  why not, or null
+     */
+    private void announceRefund(RefundRequestedEvent request, boolean success, String reason)
+    {
+        events.publishEvent(new RefundEvent(request.bookingId(), request.transactionId(), success,
+                request.amount(), reason));
     }
 
     /**

@@ -22,9 +22,9 @@ import java.util.UUID;
  *         is what clients see). It is a mutable class with a no-argument
  *         constructor because Hibernate creates it by reflection, which a
  *         Java record cannot support.
- *         State changes go through confirm() and markPaymentFailed(), which
- *         refuse to change a booking that is no longer PENDING, so the
- *         rules live in one place.
+ *         State changes go through methods (confirm, markPaymentFailed,
+ *         requestCancel, markCancelled, markRefundFailed) that each check the
+ *         starting status, so the rules live in one place.
  *
  * @author AoceanP
  */
@@ -84,7 +84,7 @@ public class Booking
     @Column(nullable = false)
     private FareClass fareClass;
 
-    /** WHAT: PENDING, CONFIRMED or PAYMENT_FAILED. */
+    /** WHAT: where the booking is in its life (see BookingStatus). */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private BookingStatus status;
@@ -150,7 +150,7 @@ public class Booking
      */
     public void confirm(String transactionId, Instant now)
     {
-        requirePending();
+        require(BookingStatus.PENDING);
         this.status = BookingStatus.CONFIRMED;
         this.transactionId = transactionId;
         this.updatedAt = now;
@@ -169,7 +169,7 @@ public class Booking
      */
     public void markPaymentFailed(String transactionId, String reason, Instant now)
     {
-        requirePending();
+        require(BookingStatus.PENDING);
         this.status = BookingStatus.PAYMENT_FAILED;
         this.transactionId = transactionId;
         this.failureReason = reason;
@@ -177,18 +177,73 @@ public class Booking
     }
 
     /**
-     * WHAT:   Refuses any change to a booking with a final status.
-     * WHY:    Stops a late or duplicated message from un-confirming a paid booking.
-     * PRE:    none
-     * THROWS: IllegalStateException if the status is not PENDING
+     * WHAT:   Starts cancelling a paid booking.
+     * PRE:    the booking is CONFIRMED
+     * POST:   status is CANCELLING; any earlier refund failure note is cleared
+     * THROWS: IllegalStateException if the booking is not CONFIRMED
      *
-     * @throws IllegalStateException if the booking is not PENDING
+     * @param now the time of the change
+     * @throws IllegalStateException if the booking is not CONFIRMED
      */
-    private void requirePending()
+    public void requestCancel(Instant now)
     {
-        if (status != BookingStatus.PENDING)
+        require(BookingStatus.CONFIRMED);
+        this.status = BookingStatus.CANCELLING;
+        this.failureReason = null;
+        this.updatedAt = now;
+    }
+
+    /**
+     * WHAT:   Completes a cancellation once the refund went through.
+     * PRE:    the booking is CANCELLING
+     * POST:   status is CANCELLED
+     * THROWS: IllegalStateException if the booking is not CANCELLING
+     *
+     * @param now the time of the change
+     * @throws IllegalStateException if the booking is not CANCELLING
+     */
+    public void markCancelled(Instant now)
+    {
+        require(BookingStatus.CANCELLING);
+        this.status = BookingStatus.CANCELLED;
+        this.updatedAt = now;
+    }
+
+    /**
+     * WHAT:   Undoes a cancellation whose refund failed.
+     * WHY:    The customer still paid, so the ticket must stay valid: the
+     *         booking goes back to CONFIRMED with the reason noted.
+     * PRE:    the booking is CANCELLING
+     * POST:   status is CONFIRMED with failureReason "refund failed: ..."
+     * THROWS: IllegalStateException if the booking is not CANCELLING
+     *
+     * @param reason why the refund failed
+     * @param now    the time of the change
+     * @throws IllegalStateException if the booking is not CANCELLING
+     */
+    public void markRefundFailed(String reason, Instant now)
+    {
+        require(BookingStatus.CANCELLING);
+        this.status = BookingStatus.CONFIRMED;
+        this.failureReason = "refund failed: " + reason;
+        this.updatedAt = now;
+    }
+
+    /**
+     * WHAT:   Refuses a change that does not start from the expected status.
+     * WHY:    Stops a late or duplicated message from moving a booking along
+     *         a path it is not on, e.g. un-confirming a paid booking.
+     * PRE:    none
+     * THROWS: IllegalStateException if the status is not the expected one
+     *
+     * @param expected the status the change starts from
+     * @throws IllegalStateException if the booking is in another status
+     */
+    private void require(BookingStatus expected)
+    {
+        if (status != expected)
         {
-            throw new IllegalStateException("booking " + id + " is already " + status);
+            throw new IllegalStateException("booking " + id + " is " + status + ", not " + expected);
         }
     }
 
