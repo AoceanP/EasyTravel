@@ -1,5 +1,6 @@
 package com.easytravel.booking.entity;
 
+import com.easytravel.common.dto.FareClass;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -8,90 +9,222 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.UUID;
 
 /**
- * JPA entity representing a booking as stored in the database.
+ * WHAT:   A booking as stored in the database.
+ * WHY:    An ENTITY, not a DTO: it knows about tables, columns and the
+ *         generated id, and it never leaves the service (BookingResponseDTO
+ *         is what clients see). It is a mutable class with a no-argument
+ *         constructor because Hibernate creates it by reflection, which a
+ *         Java record cannot support.
+ *         State changes go through confirm() and markPaymentFailed(), which
+ *         refuse to change a booking that is no longer PENDING, so the
+ *         rules live in one place.
  *
- * <p>This is an ENTITY, not a DTO — the distinction is deliberate. The entity is the
- * INTERNAL, persistence-mapped shape (it knows about tables, columns, the DB-generated
- * id). DTOs are the EXTERNAL contract. Keeping them separate means the table can evolve
- * without breaking the API, and the API never leaks storage details.
- *
- * <p>Unlike our DTOs (records), an entity is a mutable class with a no-arg constructor,
- * because JPA/Hibernate needs to instantiate it reflectively and set fields as it loads
- * rows. Records can't serve as JPA entities for that reason.
+ * @author AoceanP
  */
 @Entity
 @Table(name = "bookings")
-public class Booking {
-
+public class Booking
+{
     /**
-     * Primary key. IDENTITY strategy delegates id generation to the database's
-     * auto-increment column — simple and standard for H2/PostgreSQL.
+     * WHAT:   The primary key, a random UUID created when the booking is saved.
+     * WHY:    payment-service uses the booking id to refuse charging twice. A
+     *         counter (1, 2, 3...) restarts when this database does, so a NEW
+     *         booking 1 would look like an old one and never be charged. A
+     *         UUID is never reused, here or in any other service.
      */
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
+    /**
+     * WHAT:   Optimistic-locking version, incremented on every update.
+     * WHY:    If two threads change the same booking at once, the second
+     *         save fails instead of silently overwriting the first.
+     */
+    @Version
+    private long version;
+
+    /** WHAT: the customer who booked. */
     @Column(nullable = false)
     private String userId;
 
-    /** Which flight was booked (references FlightDTO#flightNumber from inventory). */
+    /** WHAT: the flight booked, e.g. "BA249". */
     @Column(nullable = false)
     private String flightNumber;
 
+    /** WHAT: departure airport. */
+    @Column(nullable = false, length = 3)
+    private String origin;
+
+    /** WHAT: arrival airport. */
+    @Column(nullable = false, length = 3)
+    private String destination;
+
     /**
-     * SNAPSHOT of the price the customer agreed to, frozen at booking time. Deliberately
-     * denormalized: a booking is a historical financial record, so it must preserve what
-     * was agreed, independent of the live price which changes over time.
+     * WHAT:   The price agreed at booking time, frozen.
+     * WHY:    A booking is a financial record: it must keep what was agreed,
+     *         even if the flight's price changes later.
      */
-    @Column(nullable = false)
+    @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal agreedPrice;
 
     /**
-     * The cabin booked. @Enumerated(STRING) stores the enum NAME ("BUSINESS") rather
-     * than its ordinal position (1). Always use STRING for persisted enums: ordinals
-     * break silently if you ever reorder or insert enum values, corrupting old rows.
+     * WHAT:   The cabin booked.
+     * WHY:    Stored as the NAME ("BUSINESS"), never the position (1):
+     *         positions silently break old rows if the enum is reordered.
      */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private FareClass fareClass;
 
+    /** WHAT: PENDING, CONFIRMED or PAYMENT_FAILED. */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private BookingStatus status;
 
+    /** WHAT: the payment's transaction id, once a payment result arrived. */
+    private String transactionId;
+
+    /** WHAT: why the payment failed, if it did. */
+    private String failureReason;
+
+    /** WHAT: when the booking was created. */
     @Column(nullable = false)
     private Instant createdAt;
 
-    /** JPA requires a no-arg constructor. Kept protected: app code should use the
-     other constructor, but Hibernate can still access this one. */
-    protected Booking() {
+    /** WHAT: when the status last changed. */
+    @Column(nullable = false)
+    private Instant updatedAt;
+
+    /**
+     * WHAT:   The no-argument constructor Hibernate needs.
+     * WHY:    Protected so application code uses the real constructor.
+     */
+    protected Booking()
+    {
     }
 
-    /** Convenience constructor for creating a NEW booking in application code. */
-    public Booking(String userId, String flightNumber, BigDecimal agreedPrice,
-                   FareClass fareClass, BookingStatus status, Instant createdAt) {
+    /**
+     * WHAT:   Creates a new booking, always PENDING.
+     * WHY:    A booking is only CONFIRMED after a payment event, never at creation.
+     * PRE:    every argument is not null; agreedPrice is the server-computed price
+     *
+     * @param userId       the customer
+     * @param flightNumber the flight
+     * @param origin       departure airport
+     * @param destination  arrival airport
+     * @param agreedPrice  the price to charge
+     * @param fareClass    the cabin
+     * @param now          the creation time
+     */
+    public Booking(String userId, String flightNumber, String origin, String destination,
+                   BigDecimal agreedPrice, FareClass fareClass, Instant now)
+    {
         this.userId = userId;
         this.flightNumber = flightNumber;
+        this.origin = origin;
+        this.destination = destination;
         this.agreedPrice = agreedPrice;
         this.fareClass = fareClass;
-        this.status = status;
-        this.createdAt = createdAt;
+        this.status = BookingStatus.PENDING;
+        this.createdAt = now;
+        this.updatedAt = now;
     }
 
-    // Getters (and the setters JPA/logic need). Entities need accessors for Hibernate
-    // and for serialization; kept minimal.
-    public Long getId() { return id; }
+    /**
+     * WHAT:   Marks the booking paid.
+     * PRE:    the booking is PENDING
+     * POST:   status is CONFIRMED and the transaction id is recorded
+     * THROWS: IllegalStateException if the booking is not PENDING
+     *
+     * @param transactionId the payment's transaction id
+     * @param now           the time of the change
+     * @throws IllegalStateException if the booking already has a final status
+     */
+    public void confirm(String transactionId, Instant now)
+    {
+        requirePending();
+        this.status = BookingStatus.CONFIRMED;
+        this.transactionId = transactionId;
+        this.updatedAt = now;
+    }
+
+    /**
+     * WHAT:   Marks the payment as declined.
+     * PRE:    the booking is PENDING
+     * POST:   status is PAYMENT_FAILED with the reason recorded
+     * THROWS: IllegalStateException if the booking is not PENDING
+     *
+     * @param transactionId the payment's transaction id
+     * @param reason        why the payment failed
+     * @param now           the time of the change
+     * @throws IllegalStateException if the booking already has a final status
+     */
+    public void markPaymentFailed(String transactionId, String reason, Instant now)
+    {
+        requirePending();
+        this.status = BookingStatus.PAYMENT_FAILED;
+        this.transactionId = transactionId;
+        this.failureReason = reason;
+        this.updatedAt = now;
+    }
+
+    /**
+     * WHAT:   Refuses any change to a booking with a final status.
+     * WHY:    Stops a late or duplicated message from un-confirming a paid booking.
+     * PRE:    none
+     * THROWS: IllegalStateException if the status is not PENDING
+     *
+     * @throws IllegalStateException if the booking is not PENDING
+     */
+    private void requirePending()
+    {
+        if (status != BookingStatus.PENDING)
+        {
+            throw new IllegalStateException("booking " + id + " is already " + status);
+        }
+    }
+
+    /** @return the id */
+    public UUID getId() { return id; }
+
+    /** @return the customer */
     public String getUserId() { return userId; }
+
+    /** @return the flight */
     public String getFlightNumber() { return flightNumber; }
+
+    /** @return the departure airport */
+    public String getOrigin() { return origin; }
+
+    /** @return the arrival airport */
+    public String getDestination() { return destination; }
+
+    /** @return the agreed price */
     public BigDecimal getAgreedPrice() { return agreedPrice; }
+
+    /** @return the cabin */
     public FareClass getFareClass() { return fareClass; }
+
+    /** @return the status */
     public BookingStatus getStatus() { return status; }
+
+    /** @return the payment's transaction id, or null */
+    public String getTransactionId() { return transactionId; }
+
+    /** @return why the payment failed, or null */
+    public String getFailureReason() { return failureReason; }
+
+    /** @return when it was created */
     public Instant getCreatedAt() { return createdAt; }
 
-    public void setStatus(BookingStatus status) { this.status = status; }
+    /** @return when the status last changed */
+    public Instant getUpdatedAt() { return updatedAt; }
 }

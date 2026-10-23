@@ -4,17 +4,27 @@ import com.easytravel.booking.entity.Booking;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
- * Spring Data JPA repository. By simply EXTENDING JpaRepository<Booking, Long>, we get
- * save/findById/findAll/delete/etc. for free — Spring generates the implementation at
- * runtime. We write ZERO SQL and ZERO boilerplate.
+ * WHAT:   Database access for bookings.
+ * WHY:    Extending JpaRepository gives save, findById, findAll and more for
+ *         free: Spring writes the implementation at startup, so there is no
+ *         SQL and no boilerplate here. Extra queries are derived from method
+ *         names: "findByUserIdOrderByCreatedAtDesc" becomes
+ *         SELECT * FROM bookings WHERE user_id = ? ORDER BY created_at DESC.
  *
- * <p>The magic extra: Spring Data derives queries from METHOD NAMES. "findByUserId"
- * is parsed into "SELECT * FROM bookings WHERE user_id = ?". No implementation needed —
- * the name IS the query. This is the "derived query" feature and it's worth demoing.
+ * @author AoceanP
  */
-public interface BookingRepository extends JpaRepository<Booking, Long> {
-
-    List<Booking> findByUserId(String userId);
+public interface BookingRepository extends JpaRepository<Booking, UUID>
+{
+    /**
+     * WHAT:   A customer's bookings, newest first.
+     * PRE:    userId is not null
+     * RETURN: the bookings; empty if there are none
+     *
+     * @param userId the customer
+     * @return the bookings
+     */
+    List<Booking> findByUserIdOrderByCreatedAtDesc(String userId);
 }

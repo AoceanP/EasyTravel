@@ -1,0 +1,67 @@
+# EasyTravel: the whole system with one command.
+#
+#   docker compose up --build        everything: RabbitMQ, Eureka, gateway and the three services
+#   docker compose up rabbitmq       only RabbitMQ, to run the services from IntelliJ instead
+#
+# Then:  API gateway   http://localhost:8080
+#        Eureka        http://localhost:8761   (which services are registered)
+#        RabbitMQ UI   http://localhost:15672  (user guest, password guest: local demo only)
+
+x-service: &service
+  build: .
+  restart: unless-stopped
+  environment: &env
+    EUREKA_URL: http://discovery-server:8761/eureka/
+    RABBITMQ_HOST: rabbitmq
+    # register by IP address: container host names are not resolvable by other containers
+    EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+  depends_on: &deps
+    discovery-server:
+      condition: service_started
+    rabbitmq:
+      condition: service_healthy
+
+services:
+  rabbitmq:
+    image: rabbitmq:4-management
+    ports:
+      - "5672:5672"     # AMQP, for the services
+      - "15672:15672"   # web console
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  discovery-server:
+    build:
+      context: .
+      args: { MODULE: discovery-server }
+    ports:
+      - "8761:8761"
+
+  inventory-service:
+    <<: *service
+    build:
+      context: .
+      args: { MODULE: inventory-service }
+
+  booking-service:
+    <<: *service
+    build:
+      context: .
+      args: { MODULE: booking-service }
+
+  payment-service:
+    <<: *service
+    build:
+      context: .
+      args: { MODULE: payment-service }
+
+  api-gateway:
+    <<: *service
+    build:
+      context: .
+      args: { MODULE: api-gateway }
+    ports:
+      - "8080:8080"     # the only service port exposed to the host: clients go through the gateway

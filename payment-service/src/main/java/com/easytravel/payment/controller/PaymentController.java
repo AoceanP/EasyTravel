@@ -2,30 +2,51 @@ package com.easytravel.payment.controller;
 
 import com.easytravel.common.dto.PaymentResponseDTO;
 import com.easytravel.payment.service.PaymentService;
-import org.springframework.web.bind.annotation.PostMapping;
+import jakarta.validation.constraints.NotBlank;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.math.BigDecimal;
-
 /**
- * HTTP edge for payments. Kept minimal: take a bookingId + amount, process, return the
- * PaymentResponseDTO. (In Phase 3 the trigger for this becomes part of the booking flow.)
+ * WHAT:   Read-only HTTP access to payments.
+ * WHY:    Payments are only CREATED by booking events, never by an HTTP
+ *         call: an earlier version accepted "POST /api/payments?amount=..."
+ *         from anyone, which let a client pay any amount it liked.
+ *
+ *         GET /api/payments?bookingId=1
+ *
+ * @author AoceanP
  */
 @RestController
-public class PaymentController {
-
+@Validated
+public class PaymentController
+{
+    /** WHAT: does the actual work. */
     private final PaymentService paymentService;
 
-    public PaymentController(PaymentService paymentService) {
+    /**
+     * WHAT:   Creates the controller.
+     * PRE:    paymentService is not null
+     *
+     * @param paymentService the payment logic
+     */
+    public PaymentController(PaymentService paymentService)
+    {
         this.paymentService = paymentService;
     }
 
-    /** Example: POST /api/payments?bookingId=1&amount=210.00 */
-    @PostMapping("/api/payments")
-    public PaymentResponseDTO pay(
-            @RequestParam String bookingId,
-            @RequestParam BigDecimal amount) {
-        return paymentService.processPayment(bookingId, amount);
+    /**
+     * WHAT:   Returns the payment for a booking.
+     * PRE:    bookingId is not blank
+     * RETURN: the payment, or 404 if the booking has not been charged
+     *
+     * @param bookingId the booking
+     * @return the payment
+     */
+    @GetMapping("/api/payments")
+    public PaymentResponseDTO getPayment(@RequestParam @NotBlank String bookingId)
+    {
+        return paymentService.getPaymentForBooking(bookingId);
     }
 }

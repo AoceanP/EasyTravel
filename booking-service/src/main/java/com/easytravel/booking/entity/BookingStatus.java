@@ -1,12 +1,25 @@
 package com.easytravel.booking.entity;
 
 /**
- * Lifecycle states of a booking. A booking is born PENDING and becomes CONFIRMED once
- * payment succeeds (Phase 3.2, via a RabbitMQ event). An enum — not a free String —
- * makes the valid states a compile-time contract; you can't persist a typo'd "PENDNIG".
+ * WHAT:   Where a booking is in its life.
+ * WHY:    An enum, not free text, makes the valid states a compile-time
+ *         contract: nobody can store a typo like "PENDNIG".
+ *
+ *             PENDING --payment succeeded--> CONFIRMED
+ *             PENDING --payment declined---> PAYMENT_FAILED
+ *
+ *         Only PENDING can change; the other two are final.
+ *
+ * @author AoceanP
  */
-public enum BookingStatus {
+public enum BookingStatus
+{
+    /** WHAT: created, waiting for the payment result. */
     PENDING,
+
+    /** WHAT: paid; the seat is the customer's. */
     CONFIRMED,
-    CANCELLED
+
+    /** WHAT: the payment was declined; the booking will not happen. */
+    PAYMENT_FAILED
 }

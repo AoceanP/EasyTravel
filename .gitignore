@@ -38,3 +38,7 @@ build/
 
 ### Mac OS ###
 .DS_Store
+### Local tooling ###
+__pycache__/
+*.log
+.env

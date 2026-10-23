@@ -28,6 +28,15 @@
             <artifactId>spring-web</artifactId>
         </dependency>
 
+        <!-- Servlet API, compile-only ("provided"): MissingServletRequestParameterException
+             extends ServletException. Every service that uses this library already
+             runs on Tomcat, which supplies the real classes at runtime. -->
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
         <!-- Bean Validation: supplies @NotNull, @NotBlank, @Positive, etc., used to
              validate the request DTOs (e.g. BookingRequestDTO) at the service edge.
              It lives here because the DTOs it annotates live here. -->

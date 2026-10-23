@@ -6,10 +6,21 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 
 /**
- * Spring Data repository for payments. The derived query findByBookingId lets us check
- * "has this booking already been paid?" — the basis for idempotency.
+ * WHAT:   Database access for payments.
+ * WHY:    findByBookingId answers "has this booking already been paid?",
+ *         the first line of defence against charging twice.
+ *
+ * @author AoceanP
  */
-public interface PaymentRepository extends JpaRepository<Payment, Long> {
-
+public interface PaymentRepository extends JpaRepository<Payment, Long>
+{
+    /**
+     * WHAT:   The payment for a booking, if there is one.
+     * PRE:    bookingId is not null
+     * RETURN: the payment, or empty
+     *
+     * @param bookingId the booking
+     * @return the payment
+     */
     Optional<Payment> findByBookingId(String bookingId);
 }

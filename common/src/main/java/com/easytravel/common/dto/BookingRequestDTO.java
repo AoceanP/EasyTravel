@@ -2,21 +2,24 @@ package com.easytravel.common.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.math.BigDecimal;
+import jakarta.validation.constraints.Pattern;
 
 /**
- * @author aleksandar panich
- * @version 1.0
+ * WHAT:   The body of a "create booking" request.
+ * WHY:    It deliberately has NO price field. An earlier version let the
+ *         client send the amount, so anyone could book a flight for $1;
+ *         now the booking service asks the inventory service for the real
+ *         fare. Never trust a price from the client.
+ *         Every field is validated here, on the contract, so any service
+ *         accepting this shape enforces the same rules.
+ * PRE:    arrives from an untrusted client; @Valid on the controller runs the checks
  *
- * Immutable contract for an incoming "create booking" request.
- *
- * <p>This is an INPUT DTO: it arrives from an untrusted client, so every field
- * carries a Bean Validation constraint. The constraints live ON the contract,
- * so any service that accepts this shape enforces the same rules automatically.
- *
- * @param userId       the customer creating the booking
- * @param flightNumber the flight being booked (matches FlightDTO#flightNumber)
- * @param amount       the fare to be charged; validated as strictly positive
+ * @param userId       the customer making the booking
+ * @param flightNumber the flight to book, e.g. "BA249" (from a flight search)
+ * @param origin       the 3-letter IATA departure airport, e.g. "LHR"
+ * @param destination  the 3-letter IATA arrival airport, e.g. "JFK"
+ * @param fareClass    the cabin; changes the price
+ * @author AoceanP
  */
 public record BookingRequestDTO(
 
@@ -26,7 +29,16 @@ public record BookingRequestDTO(
         @NotBlank(message = "flightNumber must not be blank")
         String flightNumber,
 
-        @NotNull(message = "amount is required")
-        BigDecimal amount
+        @Pattern(regexp = "[A-Z]{3}", message = "origin must be a 3-letter airport code, e.g. LHR")
+        @NotNull(message = "origin is required")
+        String origin,
+
+        @Pattern(regexp = "[A-Z]{3}", message = "destination must be a 3-letter airport code, e.g. JFK")
+        @NotNull(message = "destination is required")
+        String destination,
+
+        @NotNull(message = "fareClass is required: ECONOMY, BUSINESS or FIRST")
+        FareClass fareClass
 )
-{}
+{
+}

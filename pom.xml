@@ -18,7 +18,7 @@
     </modules>
 
     <properties>
-        <maven.compiler.release>26</maven.compiler.release>
+        <maven.compiler.release>25</maven.compiler.release>
         <maven.compiler.parameters>true</maven.compiler.parameters>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring-cloud.version>2025.1.2</spring-cloud.version>
@@ -47,5 +47,29 @@
 
         </dependencies>
     </dependencyManagement>
+
+    <!-- WHAT: the Spring Boot plugin, with its repackage goal bound.
+         WHY:  this pom imports the Boot BOM instead of inheriting
+               spring-boot-starter-parent, so nothing binds "repackage" for us.
+               Without it each service jar is a plain jar with no Main-Class,
+               and "java -jar" fails with "no main manifest attribute". -->
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <version>4.1.0</version>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>repackage</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
 
 </project>

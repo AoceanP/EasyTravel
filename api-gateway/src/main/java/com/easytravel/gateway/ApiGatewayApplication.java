@@ -4,12 +4,23 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /**
- * The API Gateway — single entry point for all client traffic. Routes are declared in
- * application.yml. Being a Eureka client, it resolves service locations by name.
+ * WHAT:   Starts the API gateway: the single entry point on port 8080.
+ * WHY:    Clients only ever talk to the gateway; it routes /api/flights, /api/bookings
+ *         and /api/payments to whichever instance Eureka lists (see application.yml).
+ *
+ * @author AoceanP
  */
 @SpringBootApplication
-public class ApiGatewayApplication {
-    public static void main(String[] args) {
+public class ApiGatewayApplication
+{
+    /**
+     * WHAT:   The program entry point.
+     * PRE:    none
+     *
+     * @param args command-line arguments, passed on to Spring (e.g. --server.port=9000)
+     */
+    public static void main(String[] args)
+    {
         SpringApplication.run(ApiGatewayApplication.class, args);
     }
 }

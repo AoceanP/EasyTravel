@@ -5,24 +5,38 @@ spring:
   application:
     name: payment-service
 
+  # In-memory database: zero setup. Data is lost when the service stops (fine for a demo).
   datasource:
     url: jdbc:h2:mem:paymentdb;DB_CLOSE_DELAY=-1
     driver-class-name: org.h2.Driver
     username: sa
     password: ""
 
-  rabbitmq:
-    host: localhost
-    port: 5672
-    username: guest
-    password: guest
-
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    open-in-view: false
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: 5672
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    listener:
+      simple:
+        # retried 3 times, then sent to the dead-letter queue instead of looping forever
+        default-requeue-rejected: false
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 500ms
+          multiplier: 2.0
+
+payment:
+  mock:
+    card-limit: "2000.00" # the fake card declines anything above this; quoted so YAML keeps the cents
 
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
