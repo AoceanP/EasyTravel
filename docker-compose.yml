@@ -1,9 +1,16 @@
 # EasyTravel: the whole system with one command.
 #
-#   docker compose up --build        everything: RabbitMQ, Eureka, gateway and the three services
-#   docker compose up rabbitmq       only RabbitMQ, to run the services from IntelliJ instead
+# First time only: create your local secrets (writes a gitignored .env):
+#   powershell -ExecutionPolicy Bypass -File scripts\setup.ps1     (or: sh scripts/setup.sh)
 #
-# Then:  API gateway   http://localhost:8080
+#   docker compose up --build        everything: RabbitMQ, Eureka, Keycloak, gateway, services and website
+#   docker compose up rabbitmq       only RabbitMQ, to run the services from IntelliJ instead
+#   docker compose up --build -d --no-deps web-ui
+#                                    rebuild and restart only the website, leaving the back end running
+#
+# Then:  Website       http://localhost:9080   (sign in as alice / alice-demo or ops-admin / ops-demo)
+#        Keycloak      http://keycloak.localhost:8180  (admin console: user admin, password in .env)
+#        API gateway   http://localhost:8080
 #        Eureka        http://localhost:8761   (which services are registered)
 #        RabbitMQ UI   http://localhost:15672  (user guest, password guest: local demo only)
 
@@ -57,6 +64,10 @@ services:
     build:
       context: .
       args: { MODULE: payment-service }
+    environment:
+      <<: *env
+      # turns on the pause switch at /admin/payments (not routed by the gateway)
+      EASYTRAVEL_DEMO_CONTROLS: "true"
 
   api-gateway:
     <<: *service
@@ -65,3 +76,62 @@ services:
       args: { MODULE: api-gateway }
     ports:
       - "8080:8080"     # the only service port exposed to the host: clients go through the gateway
+
+  # Sign-in (OpenID Connect). The realm, roles, demo users and the website's
+  # client are imported from keycloak/realm-easytravel.json on first start.
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.1
+    command: ["start-dev", "--import-realm", "--http-port=8180"]
+    environment:
+      # One address for browsers AND containers, so token issuers always match:
+      # browsers send *.localhost to this machine (the published port), and
+      # inside Docker the network alias below points it at this container.
+      KC_HOSTNAME: http://keycloak.localhost:8180
+      KC_HEALTH_ENABLED: "true"
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?run scripts/setup first to create .env}
+      # filled into the realm file's ${EASYTRAVEL_OIDC_SECRET} placeholder at import
+      EASYTRAVEL_OIDC_SECRET: ${EASYTRAVEL_OIDC_SECRET:?run scripts/setup first to create .env}
+    volumes:
+      - ./keycloak/realm-easytravel.json:/opt/keycloak/data/import/realm-easytravel.json:ro
+      # the EasyTravel login theme (light, matching the website)
+      - ./keycloak/themes/easytravel:/opt/keycloak/themes/easytravel:ro
+    ports:
+      - "8180:8180"
+    networks:
+      default:
+        aliases:
+          - keycloak.localhost
+    healthcheck:
+      # the image has no curl: ask the management port's /health/ready over bash's /dev/tcp
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && grep -q UP <&3"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  # The website (Jakarta Faces on Open Liberty). It calls the services only
+  # through the gateway, and listens to RabbitMQ for live booking updates.
+  web-ui:
+    build:
+      context: .
+      dockerfile: web-ui/Dockerfile
+    restart: unless-stopped
+    environment:
+      GATEWAY_MP_REST_URL: http://api-gateway:8080
+      RABBITMQ_HOST: rabbitmq
+      # the Ops room reads these directly, inside the Docker network only
+      PAYMENTS_MP_REST_URL: http://payment-service:8083
+      EUREKA_MP_REST_URL: http://discovery-server:8761
+      RABBITMQ_ADMIN_MP_REST_URL: http://rabbitmq:15672
+      EASYTRAVEL_DEMO_CONTROLS: "true"
+      # sign-in: the client secret comes from .env, never from the repository
+      EASYTRAVEL_OIDC_SECRET: ${EASYTRAVEL_OIDC_SECRET:?run scripts/setup first to create .env}
+    depends_on:
+      api-gateway:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    ports:
+      - "9080:9080"     # the website: http://localhost:9080

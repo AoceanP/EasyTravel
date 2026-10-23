@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.easytravel</groupId>
+        <artifactId>EasyTravel</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>web-ui</artifactId>
+    <packaging>war</packaging>
+    <name>EasyTravel :: Web UI</name>
+
+    <!-- WHAT: the customer and admin website, a Jakarta EE 11 web app (Faces 4.1)
+               that runs on Open Liberty, not on Spring Boot.
+         WHY:  the back end shows Spring Boot microservices; this module shows the
+               Jakarta EE side. It talks to them only through the API gateway (REST)
+               and RabbitMQ (events), so it does not depend on the common module,
+               which would pull Spring into the WAR. -->
+
+    <properties>
+        <jakartaee.version>11.0.0</jakartaee.version>
+        <!-- no web.xml check: Faces config lives in WEB-INF/web.xml, which exists -->
+        <failOnMissingWebXml>false</failOnMissingWebXml>
+        <maven.build.timestamp.format>yyyyMMddHHmmss</maven.build.timestamp.format>
+        <build.stamp>${maven.build.timestamp}</build.stamp>
+    </properties>
+
+    <dependencies>
+        <!-- The Jakarta EE 11 web profile APIs (Faces, CDI, WebSocket, JSON-B,
+             Concurrency, REST client). "provided": Open Liberty supplies them. -->
+        <dependency>
+            <groupId>jakarta.platform</groupId>
+            <artifactId>jakarta.jakartaee-web-api</artifactId>
+            <version>${jakartaee.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- MicroProfile REST Client, Config and Health APIs, also supplied by Liberty. -->
+        <dependency>
+            <groupId>org.eclipse.microprofile.rest.client</groupId>
+            <artifactId>microprofile-rest-client-api</artifactId>
+            <version>4.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.microprofile.config</groupId>
+            <artifactId>microprofile-config-api</artifactId>
+            <version>3.1</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.microprofile.health</groupId>
+            <artifactId>microprofile-health-api</artifactId>
+            <version>4.0.1</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- The plain RabbitMQ Java client (version from the Spring Boot BOM in the
+             parent). Packaged in the WAR: Liberty has no RabbitMQ support of its own. -->
+        <dependency>
+            <groupId>com.rabbitmq</groupId>
+            <artifactId>amqp-client</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- a JSON-P implementation for unit tests; Liberty supplies its own at runtime -->
+        <dependency>
+            <groupId>org.eclipse.parsson</groupId>
+            <artifactId>parsson</artifactId>
+            <version>1.1.7</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>web-ui</finalName>
+        <!-- WHAT: fills ${build.stamp} in microprofile-config.properties.
+             WHY:  the stamp goes on the stylesheet URL, so every new build
+                   gets a fresh URL and browsers never keep an old stylesheet. -->
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+    </build>
+</project>

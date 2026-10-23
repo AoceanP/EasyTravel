@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- WHAT: the Open Liberty server that runs the website.
+     WHY:  Liberty loads only the features listed here, which keeps the server
+           small and its start-up fast. Jakarta EE 11 features plus the three
+           MicroProfile ones the app uses. -->
+<server description="EasyTravel web UI">
+
+    <featureManager>
+        <feature>faces-4.1</feature>             <!-- the pages -->
+        <feature>cdi-4.1</feature>               <!-- beans and scopes -->
+        <feature>websocket-2.2</feature>         <!-- f:websocket live push -->
+        <feature>jsonb-3.0</feature>             <!-- reading event and REST JSON -->
+        <feature>concurrent-3.1</feature>        <!-- managed threads for the RabbitMQ client -->
+        <feature>restfulWSClient-4.0</feature>   <!-- HTTP client under the REST client -->
+        <feature>mpRestClient-4.0</feature>      <!-- typed client for the API gateway -->
+        <feature>mpConfig-3.1</feature>          <!-- settings from env variables -->
+        <feature>mpHealth-4.0</feature>          <!-- /health for Docker -->
+        <feature>appSecurity-6.0</feature>       <!-- Jakarta Security 4.0: sign-in with OpenID Connect -->
+    </featureManager>
+
+    <!-- HTTP only: in the demo, TLS would end at a proxy in front of it -->
+    <httpEndpoint id="defaultHttpEndpoint" host="*" httpPort="9080" httpsPort="-1"/>
+
+    <webApplication location="web-ui.war" contextRoot="/"/>
+</server>

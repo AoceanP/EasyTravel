@@ -10,7 +10,7 @@ A flight-booking backend built as **Spring Boot microservices** to understand ho
 
 ### What
 
-Five services and a message broker, started with one `docker compose up`:
+Five Spring Boot services, a message broker, a sign-in server and a Jakarta EE website, started with one `docker compose up`:
 
 | Service | Port | Job |
 |---|---|---|
@@ -20,6 +20,8 @@ Five services and a message broker, started with one `docker compose up`:
 | Booking Service | 8082 | prices and stores bookings, and drives each one to CONFIRMED or PAYMENT_FAILED |
 | Payment Service | 8083 | charges a mock card (declines anything over 2000.00) |
 | RabbitMQ | 5672 / 15672 | carries the events between booking and payment, with dead-letter queues |
+| Website | 9080 | Jakarta Faces 4.1 on Open Liberty: Book, My trips and the Ops room |
+| Keycloak | 8180 | sign-in (OpenID Connect) and the `customer` / `ops` roles |
 
 ### Problem
 
@@ -68,12 +70,28 @@ The first version had the services scaffolded but not talking to each other. I r
 
 Needs Docker Desktop. The images build the code themselves, so Java and Maven are not needed on the host.
 
+**First time only**, create your local secrets. This writes a `.env` (gitignored) with a random Keycloak client secret and admin password, so no secret lives in the repository:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\setup.ps1
+```
+
+On macOS or Linux: `sh scripts/setup.sh`. Then:
+
 ```bash
 docker compose up --build -d
 ```
 
-Give it about 15 seconds for the services to start and register with Eureka (until then the gateway answers 503), then:
+Give it up to half a minute for the services to start and register with Eureka (until then the gateway answers 503), then:
 
+- **Website: http://localhost:9080**, signing in with one of the demo accounts:
+
+  | User | Password | Can use |
+  |---|---|---|
+  | `alice` | `alice-demo` | Book and My trips |
+  | `ops-admin` | `ops-demo` | everything, plus the Ops room |
+
+  These are public test accounts for this local demo, defined in `keycloak/realm-easytravel.json`.
 - API: http://localhost:8080
 - Eureka dashboard: http://localhost:8761
 - RabbitMQ UI: http://localhost:15672 (user `guest`, password `guest`, RabbitMQ's local-only default)
@@ -93,6 +111,16 @@ mvn test
 ```
 
 To run the services from the IDE instead, start only the broker with `docker compose up -d rabbitmq`, then start `DiscoveryServerApplication` first and the other four in any order.
+
+## The website
+
+A Jakarta EE 11 web app (`web-ui/`) on Open Liberty with Java 25: Jakarta Faces 4.1 pages, CDI, MicroProfile REST Client to call the gateway, and Jakarta Security 4.0 for sign-in.
+
+- **Book**: pick a cabin, a flight and a seat; the ticket follows the booking live (Booking saved, Payment sent, Charged, Confirmed) and ends with a stamp.
+- **My trips**: every booking with its status and a boarding pass; cancel a trip and watch the refund saga complete.
+- **Ops room** (`ops` role only): services from Eureka, queue and dead-letter depths from RabbitMQ, a live event feed, booking-to-payment timings, and three "break it" controls: pause payments, send a duplicate event, send a bad message.
+
+Live updates are pushed, not polled: the website is one more consumer on RabbitMQ (its own temporary queue on both exchanges), and Faces `<f:websocket>` tells the right browser to re-read its booking. Sign-in is OpenID Connect against Keycloak with the authorization code flow. Roles come from the token's `groups` claim, and `web.xml` checks them on every page (a customer opening the Ops room gets a clear "not for this account" page). Sign-out ends the Keycloak session too.
 
 ## Usage
 
@@ -176,8 +204,9 @@ Every row was checked against the running stack or a unit test.
 
 - **Outbox pattern.** If a service crashes in the instant between committing and publishing, that one event is lost and the booking stays PENDING. The fix is to write the event to an outbox table in the same transaction and publish from there.
 - **In-memory H2 databases** keep the demo self-contained; data is gone on restart. PostgreSQL per service would be the next step.
-- **No authentication**: `userId` is trusted. Spring Security with JWTs at the gateway would fix that.
-- **Polling**: clients poll the booking for its final status; WebSockets or server-sent events could push it instead.
+- **The API trusts `userId`.** The website signs users in and books under their Keycloak username, but the REST API behind the gateway does not check tokens yet, so a direct API caller could act as anyone. Next step: the gateway validates the JWT and the website forwards the user's access token.
+- **Seats are not stored.** The seat map's taken seats are a fixed pattern per flight; real seat holds (and releasing them on cancel or decline) need seat data in inventory-service.
+- **Keycloak's default login theme** is used; a theme matching the website would be a finishing touch.
 
 ## Project layout
 
@@ -188,6 +217,9 @@ api-gateway/        Spring Cloud Gateway routes
 inventory-service/  flight search, ranking and quotes
 booking-service/    bookings, pricing, both ends of the saga
 payment-service/    mock card processor
+web-ui/             the website: Jakarta Faces on Open Liberty (Book, My trips, Ops room, sign-in)
+keycloak/           the realm imported at start-up: roles, demo users, the website's client
+scripts/            setup: creates your local .env with random secrets
 docs/               diagrams (.drawio sources, PNGs, and the script that generates them)
 ```
 

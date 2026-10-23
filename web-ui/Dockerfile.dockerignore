@@ -1,0 +1,6 @@
+# WHAT: what web-ui/Dockerfile leaves out of its build (it replaces the root .dockerignore).
+**/target/
+.git/
+.idea/
+*.iml
+docs/

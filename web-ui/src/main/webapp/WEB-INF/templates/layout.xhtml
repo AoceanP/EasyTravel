@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<!-- WHAT: the frame every page shares: head, fonts, styles and the top bar.
+     WHY:  pages fill in only "title", "nav" (which link is current) and "content". -->
+<html lang="en"
+      xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:ui="jakarta.faces.facelets">
+<h:head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title><ui:insert name="title">EasyTravel</ui:insert></title>
+    <link rel="icon" href="data:,"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap"/>
+    <!-- the app's stylesheet, served by Faces from the "et" library; the build
+         stamp makes each build's URL new, so browsers never use an old copy -->
+    <link rel="stylesheet" href="#{resource['et:css/app.css']}&amp;v=#{app.build}"/>
+</h:head>
+<h:body>
+    <header class="topbar">
+        <nav class="topbar-inner" aria-label="Main">
+            <a class="brand" href="#{request.contextPath}/">easy<span>travel</span></a>
+            <div class="nav-links">
+                <ui:insert name="nav"/>
+            </div>
+            <h:panelGroup layout="block" styleClass="who" rendered="#{visitor.signedIn}">
+                <span class="avatar" aria-hidden="true">#{visitor.initial}</span>
+                <span>#{visitor.userId}</span>
+                <form method="post" action="#{request.contextPath}/signout" class="signout">
+                    <button type="submit" class="link-button">Sign out</button>
+                </form>
+            </h:panelGroup>
+        </nav>
+    </header>
+    <main class="page">
+        <ui:insert name="content"/>
+    </main>
+</h:body>
+</html>

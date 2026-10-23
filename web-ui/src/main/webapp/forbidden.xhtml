@@ -1,0 +1,22 @@
+<ui:composition template="/WEB-INF/templates/layout.xhtml"
+                xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:ui="jakarta.faces.facelets">
+<!-- WHAT: shown instead of the server's bare "Error 403" when a signed-in user
+           opens a page their role does not allow (e.g. a customer opening the Ops room). -->
+
+    <ui:define name="title">Not allowed · EasyTravel</ui:define>
+
+    <ui:define name="nav">
+        <a class="nav-link" href="#{request.contextPath}/book">Book</a>
+        <a class="nav-link" href="#{request.contextPath}/trips">My trips</a>
+    </ui:define>
+
+    <ui:define name="content">
+        <section class="card empty forbidden">
+            <h1>That page isn't for this account</h1>
+            <p class="muted">You're signed in as #{visitor.userId}, which doesn't have access to it.
+                The Ops room is for the operations team: sign out and use the ops-admin demo account to see it.</p>
+            <a class="btn btn-primary btn-link" href="#{request.contextPath}/book">Back to booking</a>
+        </section>
+    </ui:define>
+</ui:composition>

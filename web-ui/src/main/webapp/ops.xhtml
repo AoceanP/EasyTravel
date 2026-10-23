@@ -1,0 +1,143 @@
+<ui:composition template="/WEB-INF/templates/layout.xhtml"
+                xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:p="jakarta.faces.passthrough">
+<!-- WHAT: the Ops room. One application-wide websocket channel tells every open
+           Ops room to re-render when an event arrives or the snapshot changes. -->
+
+    <ui:define name="title">Ops room · EasyTravel</ui:define>
+
+    <ui:define name="nav">
+        <a class="nav-link" href="#{request.contextPath}/book">Book</a>
+        <a class="nav-link" href="#{request.contextPath}/trips">My trips</a>
+        <a class="nav-link nav-link-on" aria-current="page" href="#{request.contextPath}/ops">Ops room</a>
+    </ui:define>
+
+    <ui:define name="content">
+
+        <h:form id="live">
+            <f:websocket channel="ops" scope="application">
+                <f:ajax event="updated" render=":ops"/>
+            </f:websocket>
+        </h:form>
+
+        <h:form id="ops">
+            <div class="page-head">
+                <div>
+                    <h1>Ops room</h1>
+                    <p class="muted page-sub">Everything the booking system is doing, as it happens.</p>
+                </div>
+                <h:panelGroup styleClass="#{opsView.live ? 'live live-on' : 'live live-off'}">
+                    <span class="live-dot"></span>#{opsView.live ? 'Live' : 'Not receiving events'}
+                </h:panelGroup>
+            </div>
+
+            <div class="kpis">
+                <ui:repeat value="#{opsView.kpis}" var="k">
+                    <section class="card #{k.css}">
+                        <div class="cap">#{k.label}</div>
+                        <div class="kpi-value">#{k.value}</div>
+                        <div class="small muted">#{k.sub}</div>
+                    </section>
+                </ui:repeat>
+            </div>
+
+            <div class="ops-row">
+                <section class="card ops-card" aria-label="Services">
+                    <div class="card-head"><h2>Services</h2><span class="small muted">from Eureka</span></div>
+                    <div class="svc-grid">
+                        <ui:repeat value="#{opsView.services}" var="s">
+                            <div class="svc">
+                                <span class="dot-svc dot-#{s.state}" aria-hidden="true"></span>
+                                <span class="svc-name">#{s.name}</span>
+                                <span class="mono-sm muted">#{s.state == 'up' ? ':'.concat(s.port) : s.state}</span>
+                            </div>
+                        </ui:repeat>
+                    </div>
+                </section>
+
+                <section class="card ops-card" aria-label="Queues">
+                    <div class="card-head"><h2>RabbitMQ queues</h2><span class="small muted">messages waiting</span></div>
+                    <h:panelGroup layout="block" styleClass="small muted" rendered="#{not opsView.queuesKnown}">
+                        RabbitMQ's management API isn't answering right now.
+                    </h:panelGroup>
+                    <ui:repeat value="#{opsView.queues}" var="q">
+                        <div class="#{q.css}">
+                            <div class="queue-line"><span class="mono-sm">#{q.name}</span><span class="mono-sm">#{q.messages}</span></div>
+                            <div class="queue-bar"><span style="width: #{q.width}"></span></div>
+                        </div>
+                    </ui:repeat>
+                </section>
+            </div>
+
+            <div class="ops-row">
+                <section class="card ops-card ops-feed" aria-label="Live events">
+                    <div class="card-head"><h2>Live events</h2><span class="small muted">heard on RabbitMQ</span></div>
+                    <h:panelGroup layout="block" styleClass="small muted" rendered="#{empty opsView.feed}">
+                        Nothing yet. Book a flight and its events appear here.
+                    </h:panelGroup>
+                    <ui:repeat value="#{opsView.feed}" var="e">
+                        <div class="feed-row">
+                            <span class="mono-sm muted">#{e.time}</span>
+                            <span class="mono-sm #{e.css}">#{e.name}</span>
+                            <span class="small muted feed-detail">#{e.detail}</span>
+                        </div>
+                    </ui:repeat>
+                </section>
+
+                <section class="ops-controls" aria-label="Break it">
+                    <h2>Break it, watch it recover</h2>
+                    <h:panelGroup layout="block" styleClass="small muted" rendered="#{not opsView.demoControls}">
+                        Demo controls are turned off on this server.
+                    </h:panelGroup>
+                    <h:panelGroup rendered="#{opsView.demoControls}">
+                        <h:commandLink styleClass="#{opsView.paused ? 'ctl ctl-on' : 'ctl'}" action="#{opsView.togglePause}" p:role="button">
+                            <f:ajax render="@form"/>
+                            <span class="ctl-icon ctl-amber" aria-hidden="true">#{opsView.paused ? '▶' : 'II'}</span>
+                            <span class="ctl-text">
+                                <span class="ctl-title">#{opsView.paused ? 'Resume payments' : 'Pause payments'}</span>
+                                <span class="small muted">#{opsView.paused ? 'Charge everything that waited.' : 'New bookings wait in the queue instead.'}</span>
+                            </span>
+                        </h:commandLink>
+                        <h:commandLink styleClass="ctl" action="#{opsView.sendDuplicate}" p:role="button">
+                            <f:ajax render="@form"/>
+                            <span class="ctl-icon ctl-blue" aria-hidden="true">×2</span>
+                            <span class="ctl-text">
+                                <span class="ctl-title">Send a duplicate</span>
+                                <span class="small muted">Repeats the last payment. Nobody is charged twice.</span>
+                            </span>
+                        </h:commandLink>
+                        <h:commandLink styleClass="ctl" action="#{opsView.sendBadMessage}" p:role="button">
+                            <f:ajax render="@form"/>
+                            <span class="ctl-icon ctl-red" aria-hidden="true">!</span>
+                            <span class="ctl-text">
+                                <span class="ctl-title">Send a bad message</span>
+                                <span class="small muted">Fails 3 times, then waits in the dead-letter queue.</span>
+                            </span>
+                        </h:commandLink>
+                    </h:panelGroup>
+                    <h:outputText value="#{opsView.message}" styleClass="#{opsView.messageCss}" p:role="status"
+                                  rendered="#{opsView.message != null}"/>
+                </section>
+            </div>
+
+            <section class="card ops-card" aria-label="Saga timing">
+                <div class="card-head">
+                    <h2>Booking to payment result</h2>
+                    <span class="mono-sm muted">p50 #{opsView.p50} · p95 #{opsView.p95}</span>
+                </div>
+                <p class="small muted timing-note">Measured where the website hears the two events, so it includes both trips through RabbitMQ.</p>
+                <h:panelGroup layout="block" styleClass="small muted" rendered="#{empty opsView.bars}">
+                    No bookings timed yet.
+                </h:panelGroup>
+                <div class="timing" aria-hidden="true">
+                    <ui:repeat value="#{opsView.bars}" var="b">
+                        <span class="timing-bar" style="height: #{b.height}" title="#{b.ms} ms"></span>
+                    </ui:repeat>
+                </div>
+            </section>
+        </h:form>
+    </ui:define>
+</ui:composition>

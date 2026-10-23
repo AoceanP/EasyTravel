@@ -1,0 +1,154 @@
+<ui:composition template="/WEB-INF/templates/layout.xhtml"
+                xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:p="jakarta.faces.passthrough">
+<!-- WHAT: the My trips page. Same pattern as Book: every control re-renders
+           the "trips" form by ajax; the "live" form holds the websocket. -->
+
+    <ui:define name="title">My trips · EasyTravel</ui:define>
+
+    <ui:define name="nav">
+        <a class="nav-link" href="#{request.contextPath}/book">Book</a>
+        <a class="nav-link nav-link-on" aria-current="page" href="#{request.contextPath}/trips">My trips</a>
+        <ui:fragment rendered="#{visitor.ops}"><a class="nav-link" href="#{request.contextPath}/ops">Ops room</a></ui:fragment>
+    </ui:define>
+
+    <ui:define name="content">
+
+        <h:form id="live">
+            <f:websocket channel="booking" user="#{visitor.key}">
+                <f:ajax event="updated" listener="#{tripsView.onLiveUpdate}" render=":trips"/>
+            </f:websocket>
+        </h:form>
+
+        <h:form id="trips">
+            <div class="page-head">
+                <div>
+                    <h1>Your trips</h1>
+                    <h:outputText value="#{tripsView.summary}" styleClass="muted" rendered="#{tripsView.loadError == null}"/>
+                </div>
+                <a class="btn btn-primary btn-link" href="#{request.contextPath}/book">Book a flight</a>
+            </div>
+
+            <h:panelGroup layout="block" styleClass="card empty" rendered="#{tripsView.loadError != null}">
+                <p>#{tripsView.loadError}</p>
+                <h:commandButton value="Try again" styleClass="btn" action="#{tripsView.load}">
+                    <f:ajax render="@form"/>
+                </h:commandButton>
+            </h:panelGroup>
+
+            <h:panelGroup layout="block" styleClass="card empty" rendered="#{tripsView.noTrips}">
+                <h2>No trips yet</h2>
+                <p class="muted">Book a flight and it will show up here with its boarding pass.</p>
+                <a class="btn btn-primary btn-link" href="#{request.contextPath}/book">Find a flight</a>
+            </h:panelGroup>
+
+            <h:panelGroup layout="block" styleClass="columns" rendered="#{not tripsView.noTrips and tripsView.loadError == null}">
+
+                <section class="trip-list" aria-label="Trips">
+                    <ui:repeat value="#{tripsView.trips}" var="t">
+                        <article class="#{t.css}">
+                            <div class="trip-main">
+                                <span class="#{t.monoCss}">#{t.mono}</span>
+                                <div class="trip-text">
+                                    <div class="trip-title">
+                                        <span class="route-name">London → New York</span>
+                                        <span class="#{t.pillCss}">#{t.status}</span>
+                                    </div>
+                                    <div class="mono-sm muted">#{t.code} · #{t.cabin} · #{t.price} · #{t.shortId}</div>
+                                    <div class="small muted">Booked #{t.booked}</div>
+                                    <h:outputText value="#{t.note}" styleClass="#{t.noteCss}" rendered="#{t.note != null}"/>
+                                </div>
+                            </div>
+                            <div class="trip-actions">
+                                <h:commandButton value="#{t.selected ? 'Showing pass' : 'Boarding pass'}" styleClass="btn btn-small"
+                                                 action="#{tripsView.select(t.id)}">
+                                    <f:ajax render="@form"/>
+                                </h:commandButton>
+                                <h:commandButton value="Cancel trip" styleClass="btn btn-small btn-danger"
+                                                 rendered="#{t.canCancel and not t.confirming}" action="#{tripsView.askCancel(t.id)}">
+                                    <f:ajax render="@form"/>
+                                </h:commandButton>
+                            </div>
+                            <h:panelGroup layout="block" styleClass="confirm" rendered="#{t.confirming}" p:role="alertdialog"
+                                          p:aria-label="Confirm cancellation">
+                                <p>Cancel #{t.code} and refund #{t.price} to your card? This can't be undone.</p>
+                                <div class="confirm-actions">
+                                    <h:commandButton value="Yes, cancel trip" styleClass="btn btn-small btn-danger-solid"
+                                                     action="#{tripsView.cancel(t.id)}">
+                                        <f:ajax render="@form"/>
+                                    </h:commandButton>
+                                    <h:commandButton value="Keep my trip" styleClass="btn btn-small" action="#{tripsView.keep}">
+                                        <f:ajax render="@form"/>
+                                    </h:commandButton>
+                                </div>
+                            </h:panelGroup>
+                        </article>
+                    </ui:repeat>
+                </section>
+
+                <aside class="side" aria-label="Boarding pass">
+                    <h:panelGroup layout="block" styleClass="pass" rendered="#{tripsView.pass != null}">
+                        <div class="pass-body">
+                            <div class="ticket-head cap">
+                                <span>BOARDING PASS · #{tripsView.pass.airline.toUpperCase()}</span>
+                                <span>#{tripsView.pass.cabin}</span>
+                            </div>
+                            <div class="pass-route">
+                                <div><div class="code">LHR</div><div class="small muted">London</div></div>
+                                <span class="dash"></span>
+                                <div class="right"><div class="code">JFK</div><div class="small muted">New York</div></div>
+                            </div>
+                            <div class="pass-facts">
+                                <div><span class="fact">Flight</span><span class="mono">#{tripsView.pass.code}</span></div>
+                                <div><span class="fact">Passenger</span><span class="mono">#{visitor.userId.toUpperCase()}</span></div>
+                                <div><span class="fact">Paid</span><span class="mono">#{tripsView.pass.price}</span></div>
+                                <h:outputText value="#{tripsView.pass.stamp}" styleClass="#{tripsView.pass.stampCss}"
+                                              rendered="#{tripsView.pass.stamp != null}"/>
+                            </div>
+                        </div>
+                        <div class="pass-foot">
+                            <div class="barcode" aria-hidden="true">
+                                <ui:repeat value="#{tripsView.pass.bars}" var="b">
+                                    <span class="#{b.css}" style="width: #{b.width}"></span>
+                                </ui:repeat>
+                            </div>
+                            <div class="right">
+                                <span class="fact">Booking</span>
+                                <span class="mono-sm">#{tripsView.pass.ref}</span>
+                            </div>
+                        </div>
+                    </h:panelGroup>
+
+                    <h:panelGroup layout="block" styleClass="card progress-card" rendered="#{tripsView.cancelProgress != null}"
+                                  p:aria-label="Cancellation progress">
+                        <h2>#{tripsView.cancelProgress.done ? (tripsView.cancelProgress.ok ? 'Cancelled' : 'Could not cancel') : 'Cancelling'} #{tripsView.cancellingFlight}</h2>
+                        <ol class="#{tripsView.details ? 'steps steps-detailed' : 'steps'}">
+                            <ui:repeat value="#{tripsView.cancelProgress.steps}" var="st">
+                                <li class="#{st.css}">
+                                    <span class="dot-line">
+                                        <span class="dot"></span>
+                                        <h:panelGroup styleClass="#{st.line}" rendered="#{not st.last}"/>
+                                    </span>
+                                    <span class="step-label">#{st.label}</span>
+                                    <h:outputText value="#{st.tech}" styleClass="step-tech" rendered="#{tripsView.details}"/>
+                                </li>
+                            </ui:repeat>
+                        </ol>
+                        <label class="details">
+                            <h:selectBooleanCheckbox value="#{tripsView.details}">
+                                <f:ajax render="@form"/>
+                            </h:selectBooleanCheckbox>
+                            Show what happens behind the scenes
+                        </label>
+                    </h:panelGroup>
+
+                    <h:outputText value="#{tripsView.message}" styleClass="#{tripsView.messageCss}" p:role="status"
+                                  rendered="#{tripsView.message != null}"/>
+                </aside>
+            </h:panelGroup>
+        </h:form>
+    </ui:define>
+</ui:composition>

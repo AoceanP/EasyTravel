@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<!-- WHAT: the public landing page. "Sign in" goes to /signin, which is protected,
+           so Jakarta Security sends the browser to Keycloak's login form; after
+           sign-in each role lands on its home page. No password is ever typed
+           into this website: Keycloak handles it. -->
+<html lang="en"
+      xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:ui="jakarta.faces.facelets">
+<h:head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Sign in · EasyTravel</title>
+    <link rel="icon" href="data:,"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap"/>
+    <link rel="stylesheet" href="#{resource['et:css/app.css']}&amp;v=#{app.build}"/>
+</h:head>
+<h:body styleClass="login-body">
+    <div class="login">
+        <section class="login-brand" aria-label="About EasyTravel">
+            <span class="brand">easy<span>travel</span></span>
+            <div>
+                <svg class="login-arc" viewBox="0 0 440 150" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20 130 Q220 -40 420 130" fill="none" stroke="#D2C6B4" stroke-width="2" stroke-dasharray="6 8"/>
+                    <circle cx="20" cy="130" r="7" fill="#E89A3C"/>
+                    <circle cx="420" cy="130" r="7" fill="#3A4555"/>
+                    <path d="M206 46 l14 -6 l14 6 l-14 -2 z" fill="#E89A3C"/>
+                </svg>
+                <h1 class="login-title">Book a flight and watch every step happen.</h1>
+                <p class="login-lead">A demo booking system: five Spring Boot services and RabbitMQ behind a
+                    Jakarta Faces website, with sign-in by Keycloak. All flights and payments are fake.</p>
+            </div>
+            <div class="login-stack mono-sm">
+                <span>Java 25</span><span>Jakarta Faces 4.1</span><span>Spring Boot 4</span><span>RabbitMQ</span><span>Keycloak</span>
+            </div>
+        </section>
+
+        <section class="login-panel">
+            <div class="login-card">
+                <ui:fragment rendered="#{not visitor.signedIn}">
+                    <h2 class="login-h2">Sign in</h2>
+                    <p class="muted">You'll sign in on the secure EasyTravel sign-in page, then come straight back.</p>
+                    <a class="btn btn-primary btn-link btn-wide" href="#{request.contextPath}/signin">Sign in</a>
+
+                    <div class="divider"><span>demo accounts</span></div>
+                    <div class="demo">
+                        <span class="avatar" aria-hidden="true">A</span>
+                        <div>
+                            <div class="demo-name">Customer</div>
+                            <div class="mono-sm muted">alice · alice-demo</div>
+                            <div class="small muted">Book, view and cancel trips</div>
+                        </div>
+                    </div>
+                    <div class="demo">
+                        <span class="avatar avatar-blue" aria-hidden="true">O</span>
+                        <div>
+                            <div class="demo-name">Operations</div>
+                            <div class="mono-sm muted">ops-admin · ops-demo</div>
+                            <div class="small muted">Everything above, plus the Ops room</div>
+                        </div>
+                    </div>
+                    <p class="small muted">These are public test accounts for this local demo only.</p>
+                </ui:fragment>
+
+                <ui:fragment rendered="#{visitor.signedIn}">
+                    <h2 class="login-h2">Welcome back, #{visitor.userId}</h2>
+                    <p class="muted">You're already signed in.</p>
+                    <a class="btn btn-primary btn-link btn-wide" href="#{request.contextPath}/signin">Continue</a>
+                    <form method="post" action="#{request.contextPath}/signout" class="signout-wide">
+                        <button type="submit" class="btn btn-wide">Sign out</button>
+                    </form>
+                </ui:fragment>
+            </div>
+        </section>
+    </div>
+</h:body>
+</html>

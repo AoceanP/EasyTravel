@@ -1,0 +1,137 @@
+/* WHAT: the website's palette and type on Keycloak's login pages.
+   WHY:  sign-in should feel like part of EasyTravel, not a different product:
+         same page colour, card, text colours, font, and amber main button. */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+:root {
+    --et-page: #F7F5F1;
+    --et-card: #FFFFFF;
+    --et-line: #ECE6DD;
+    --et-field: #DCD3C6;
+    --et-ink: #3A4555;
+    --et-muted: #646D7A;
+    --et-amber: #E89A3C;
+    --et-amber-hover: #E08C2A;
+    --et-amber-ink: #4A2E0A;
+    --et-amber-text: #8A4E12;
+    --et-bad: #B0423F;
+
+    /* PatternFly's own variables, so every component picks the colours up */
+    --pf-v5-global--FontFamily--text: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --pf-v5-global--FontFamily--heading: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --pf-v5-global--Color--100: var(--et-ink);
+    --pf-v5-global--Color--200: var(--et-muted);
+    --pf-v5-global--link--Color: var(--et-amber-text);
+    --pf-v5-global--link--Color--hover: #6E3F10;
+    --pf-v5-global--primary-color--100: var(--et-amber);
+    --keycloak-card-top-color: transparent;
+}
+
+/* the page: flat warm off-white, no background image */
+.login-pf body {
+    background: var(--et-page);
+    color: var(--et-ink);
+}
+
+/* the brand above the card: "easytravel", like the website's top bar.
+   Keycloak's styles.css forces this text white with
+   "color: var(--pf-v5-global--Color--light-100) !important" (made for its dark
+   background); redefining that variable here turns it slate, no !important needed. */
+#kc-header-wrapper {
+    --pf-v5-global--Color--light-100: var(--et-ink);
+    font-family: Inter, system-ui, sans-serif;
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    text-transform: none;
+}
+.pf-v5-c-login__header #kc-header-wrapper .et-accent {
+    color: #D9822B;
+}
+
+/* the card */
+.pf-v5-c-login__main {
+    background: var(--et-card);
+    border: 1px solid var(--et-line);
+    border-radius: 18px;
+    box-shadow: none;
+    overflow: hidden;
+}
+.pf-v5-c-login__main-header {
+    border-top: none;
+}
+.pf-v5-c-login__main-header .pf-v5-c-title {
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--et-ink);
+}
+
+/* labels and fields */
+.pf-v5-c-form__label-text {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--et-ink);
+}
+.pf-v5-c-form-control {
+    --pf-v5-c-form-control--BorderRadius: 10px;
+    --pf-v5-c-form-control--before--BorderStyle: none;
+    --pf-v5-c-form-control--after--BorderStyle: none;
+    border: 1px solid var(--et-field);
+    border-radius: 10px;
+    background: var(--et-card);
+    min-height: 44px;
+}
+.pf-v5-c-form-control:focus-within {
+    border-color: var(--et-amber);
+    box-shadow: 0 0 0 2px rgba(232, 154, 60, .25);
+}
+.pf-v5-c-form-control > input {
+    color: var(--et-ink);
+}
+/* the password field and its "show" button read as one control */
+.pf-v5-c-input-group .pf-v5-c-form-control {
+    border-radius: 10px 0 0 10px;
+    border-right: none;
+}
+.pf-v5-c-input-group .pf-v5-c-button.pf-m-control {
+    --pf-v5-c-button--after--BorderWidth: 0;
+    border: 1px solid var(--et-field);
+    border-left: none;
+    border-radius: 0 10px 10px 0;
+    background: var(--et-card);
+    color: var(--et-muted);
+    min-height: 44px;
+}
+.pf-v5-c-input-group:focus-within .pf-v5-c-form-control,
+.pf-v5-c-input-group:focus-within .pf-v5-c-button.pf-m-control {
+    border-color: var(--et-amber);
+}
+
+/* the main button: amber with dark text, as on the website */
+.pf-v5-c-button.pf-m-primary {
+    --pf-v5-c-button--m-primary--BackgroundColor: var(--et-amber);
+    --pf-v5-c-button--m-primary--hover--BackgroundColor: var(--et-amber-hover);
+    --pf-v5-c-button--m-primary--focus--BackgroundColor: var(--et-amber-hover);
+    --pf-v5-c-button--m-primary--active--BackgroundColor: var(--et-amber-hover);
+    --pf-v5-c-button--m-primary--Color: var(--et-amber-ink);
+    --pf-v5-c-button--m-primary--hover--Color: var(--et-amber-ink);
+    --pf-v5-c-button--m-primary--focus--Color: var(--et-amber-ink);
+    --pf-v5-c-button--m-primary--active--Color: var(--et-amber-ink);
+    min-height: 46px;
+    border-radius: 11px;
+    font-weight: 600;
+    font-size: 15px;
+}
+
+/* error messages in the website's red */
+.pf-v5-c-helper-text__item.pf-m-error,
+.kc-feedback-text {
+    color: var(--et-bad);
+}
+
+:focus-visible {
+    outline: 2px solid var(--et-amber);
+    outline-offset: 2px;
+}

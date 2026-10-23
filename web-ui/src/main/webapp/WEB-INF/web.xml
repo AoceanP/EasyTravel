@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="https://jakarta.ee/xml/ns/jakartaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/web-app_6_1.xsd"
+         version="6.1">
+
+    <display-name>EasyTravel</display-name>
+
+    <!-- Production: no development error pages shown to visitors -->
+    <context-param>
+        <param-name>jakarta.faces.PROJECT_STAGE</param-name>
+        <param-value>Production</param-value>
+    </context-param>
+
+    <!-- turns on the endpoint behind <f:websocket> (off by default) -->
+    <context-param>
+        <param-name>jakarta.faces.ENABLE_WEBSOCKET_ENDPOINT</param-name>
+        <param-value>true</param-value>
+    </context-param>
+
+    <!-- clean URLs: /book instead of /book.xhtml -->
+    <context-param>
+        <param-name>jakarta.faces.AUTOMATIC_EXTENSIONLESS_MAPPING</param-name>
+        <param-value>true</param-value>
+    </context-param>
+
+    <!-- keep XHTML comments out of the HTML sent to browsers -->
+    <context-param>
+        <param-name>jakarta.faces.FACELETS_SKIP_COMMENTS</param-name>
+        <param-value>true</param-value>
+    </context-param>
+
+    <!-- MyFaces (Liberty's Faces) lets browsers cache CSS for 7 days by default;
+         one hour keeps a redeployed stylesheet from looking broken for a week -->
+    <context-param>
+        <param-name>org.apache.myfaces.RESOURCE_MAX_TIME_EXPIRES</param-name>
+        <param-value>3600000</param-value>
+    </context-param>
+
+    <servlet>
+        <servlet-name>Faces Servlet</servlet-name>
+        <servlet-class>jakarta.faces.webapp.FacesServlet</servlet-class>
+        <load-on-startup>1</load-on-startup>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>Faces Servlet</servlet-name>
+        <url-pattern>*.xhtml</url-pattern>
+    </servlet-mapping>
+
+    <!-- the public landing page; everything else needs a sign-in -->
+    <welcome-file-list>
+        <welcome-file>login.xhtml</welcome-file>
+    </welcome-file-list>
+
+    <!-- WHAT: who may open which page. Roles come from the Keycloak realm (the
+         "groups" claim). Both the clean URL and the .xhtml name are listed,
+         so neither can be used to get around the other. -->
+    <security-constraint>
+        <web-resource-collection>
+            <web-resource-name>customer pages</web-resource-name>
+            <url-pattern>/book</url-pattern>
+            <url-pattern>/book.xhtml</url-pattern>
+            <url-pattern>/trips</url-pattern>
+            <url-pattern>/trips.xhtml</url-pattern>
+        </web-resource-collection>
+        <auth-constraint>
+            <role-name>customer</role-name>
+        </auth-constraint>
+    </security-constraint>
+    <security-constraint>
+        <web-resource-collection>
+            <web-resource-name>ops pages</web-resource-name>
+            <url-pattern>/ops</url-pattern>
+            <url-pattern>/ops.xhtml</url-pattern>
+        </web-resource-collection>
+        <auth-constraint>
+            <role-name>ops</role-name>
+        </auth-constraint>
+    </security-constraint>
+    <!-- a signed-in user without the role sees an explanation, not "Error 403" -->
+    <error-page>
+        <error-code>403</error-code>
+        <location>/forbidden.xhtml</location>
+    </error-page>
+
+    <security-role>
+        <role-name>customer</role-name>
+    </security-role>
+    <security-role>
+        <role-name>ops</role-name>
+    </security-role>
+
+    <session-config>
+        <session-timeout>30</session-timeout>
+        <cookie-config>
+            <http-only>true</http-only>
+        </cookie-config>
+    </session-config>
+</web-app>

@@ -1,0 +1,12 @@
+# WHAT: what the shared service Dockerfile (./Dockerfile) leaves out of its build.
+# WHY:  the services never need the website's sources. Without this, editing a
+#       page would rebuild every service image and restart the whole back end.
+#       web-ui/pom.xml stays in, so the Maven reactor still sees the module (it
+#       packages an empty WAR here, which no service image uses).
+**/target/
+.git/
+.idea/
+*.iml
+docs/
+web-ui/src/
+web-ui/Dockerfile*

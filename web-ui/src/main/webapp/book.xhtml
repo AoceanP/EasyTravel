@@ -1,0 +1,214 @@
+<ui:composition template="/WEB-INF/templates/layout.xhtml"
+                xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:p="jakarta.faces.passthrough">
+<!-- WHAT: the Book page. Every control is a Faces ajax request that re-renders
+           the "book" form; the separate "live" form holds the websocket, so
+           re-rendering the page never reopens the socket. -->
+
+    <ui:define name="title">Book a flight · EasyTravel</ui:define>
+
+    <ui:define name="nav">
+        <a class="nav-link nav-link-on" aria-current="page" href="#{request.contextPath}/book">Book</a>
+        <a class="nav-link" href="#{request.contextPath}/trips">My trips</a>
+        <ui:fragment rendered="#{visitor.ops}"><a class="nav-link" href="#{request.contextPath}/ops">Ops room</a></ui:fragment>
+    </ui:define>
+
+    <ui:define name="content">
+
+        <h:form id="live">
+            <f:websocket channel="booking" user="#{visitor.key}">
+                <f:ajax event="updated" listener="#{bookView.onLiveUpdate}" render=":book"/>
+            </f:websocket>
+        </h:form>
+
+        <h:form id="book" styleClass="#{bookView.busy ? 'book busy' : 'book'}">
+
+            <section class="card route">
+                <div class="route-ends">
+                    <div>
+                        <div class="cap">FROM</div>
+                        <div class="city">London</div>
+                        <div class="mono-sm muted">LHR · Heathrow</div>
+                    </div>
+                    <svg class="arc" viewBox="0 0 400 64" preserveAspectRatio="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M8 56 Q200 -18 392 56" fill="none" stroke="#D8CFC2" stroke-width="1.5" stroke-dasharray="5 6"/>
+                        <circle cx="8" cy="56" r="5" fill="#E89A3C"/>
+                        <circle cx="392" cy="56" r="5" fill="#3A4555"/>
+                        <path d="M192 18 l10 -4 l10 4 l-10 -1 z" fill="#E89A3C"/>
+                    </svg>
+                    <div class="right">
+                        <div class="cap">TO</div>
+                        <div class="city">New York</div>
+                        <div class="mono-sm muted">JFK · Kennedy</div>
+                    </div>
+                </div>
+                <div class="route-controls">
+                    <div class="chips" role="group" aria-label="Cabin">
+                        <ui:repeat value="#{bookView.cabins}" var="c">
+                            <h:commandButton value="#{c.label}" styleClass="#{c.css}" p:aria-pressed="#{c.selected}"
+                                             action="#{bookView.pickCabin(c.value)}">
+                                <f:ajax render="@form"/>
+                            </h:commandButton>
+                        </ui:repeat>
+                    </div>
+                    <div class="chips" role="group" aria-label="Sort flights">
+                        <span class="muted small">Sort by</span>
+                        <ui:repeat value="#{bookView.sorts}" var="s">
+                            <h:commandButton value="#{s.label}" styleClass="#{s.css}" p:aria-pressed="#{s.selected}"
+                                             action="#{bookView.pickSort(s.value)}">
+                                <f:ajax render="@form"/>
+                            </h:commandButton>
+                        </ui:repeat>
+                    </div>
+                </div>
+            </section>
+
+            <div class="columns">
+
+                <section class="flights" aria-label="Flights">
+                    <h:panelGroup layout="block" styleClass="card empty" rendered="#{bookView.loadError != null}">
+                        <p>#{bookView.loadError}</p>
+                        <h:commandButton value="Try again" styleClass="btn" action="#{bookView.load}">
+                            <f:ajax render="@form"/>
+                        </h:commandButton>
+                    </h:panelGroup>
+                    <h:panelGroup rendered="#{bookView.loadError == null}">
+                        <div class="list-head">
+                            <h2>#{bookView.flights.size()} non-stop flights</h2>
+                            <span class="muted small">Prices for #{bookView.cabin.label.toLowerCase()}, per person</span>
+                        </div>
+                        <ui:repeat value="#{bookView.flights}" var="f">
+                            <h:commandLink styleClass="#{f.css}" action="#{bookView.pickFlight(f.code)}"
+                                           p:aria-pressed="#{f.selected}" p:role="button">
+                                <f:ajax render="@form"/>
+                                <span class="flight-airline">
+                                    <span class="#{f.monoCss}">#{f.mono}</span>
+                                    <span class="flight-names">
+                                        <span class="airline">#{f.airline}</span>
+                                        <span class="mono-sm muted">#{f.code}</span>
+                                        <h:outputText value="#{f.tag}" styleClass="tag" rendered="#{f.tag != null}"/>
+                                    </span>
+                                </span>
+                                <span class="flight-route">
+                                    <span class="flight-line">
+                                        <span class="mono-sm">LHR</span>
+                                        <span class="bar"><span class="bar-fill" style="width: #{f.barWidth}"></span></span>
+                                        <span class="mono-sm">JFK</span>
+                                    </span>
+                                    <span class="muted small center">#{f.duration} · non-stop</span>
+                                </span>
+                                <span class="flight-price">
+                                    <span class="price">#{f.price}</span>
+                                    <span class="#{f.noteCss}">#{f.note}</span>
+                                </span>
+                            </h:commandLink>
+                        </ui:repeat>
+                    </h:panelGroup>
+                </section>
+
+                <h:panelGroup layout="block" styleClass="side" rendered="#{bookView.flight != null}"
+                              p:role="complementary" p:aria-label="Seat and ticket">
+
+                    <section class="card seats">
+                        <div class="card-head">
+                            <h2>Choose a seat</h2>
+                            <span class="muted small">#{bookView.flight} · #{bookView.cabin.label.toLowerCase()}</span>
+                        </div>
+                        <div class="seat-grid">
+                            <div class="seat-row seat-letters" aria-hidden="true">
+                                <span class="row-no"></span><span>A</span><span>B</span><span>C</span>
+                                <span class="aisle"></span><span>D</span><span>E</span><span>F</span>
+                            </div>
+                            <ui:repeat value="#{bookView.seatRows}" var="r">
+                                <div class="seat-row">
+                                    <span class="row-no">#{r.number}</span>
+                                    <ui:repeat value="#{r.left}" var="s">
+                                        <h:commandButton value="#{s.mark}" styleClass="#{s.css}" p:aria-label="#{s.aria}"
+                                                         action="#{bookView.pickSeat(s.id)}">
+                                            <f:ajax render="@form"/>
+                                        </h:commandButton>
+                                    </ui:repeat>
+                                    <span class="aisle"></span>
+                                    <ui:repeat value="#{r.right}" var="s">
+                                        <h:commandButton value="#{s.mark}" styleClass="#{s.css}" p:aria-label="#{s.aria}"
+                                                         action="#{bookView.pickSeat(s.id)}">
+                                            <f:ajax render="@form"/>
+                                        </h:commandButton>
+                                    </ui:repeat>
+                                </div>
+                            </ui:repeat>
+                        </div>
+                        <div class="legend">
+                            <span><i class="key key-free"></i>Free</span>
+                            <span><i class="key key-taken"></i>Taken</span>
+                            <span><i class="key key-selected"></i>Your pick</span>
+                            <span><i class="key key-yours"></i>Booked</span>
+                        </div>
+                    </section>
+
+                    <section class="card ticket" aria-label="Your ticket">
+                        <div class="ticket-body">
+                            <div class="ticket-head cap">
+                                <span>#{bookView.airline.toUpperCase()} · #{bookView.flight}</span>
+                                <span>#{bookView.cabin.label.toUpperCase()}</span>
+                            </div>
+                            <div class="ticket-route">
+                                <span class="code">LHR</span><span class="dash"></span><span class="code">JFK</span>
+                            </div>
+                            <div class="ticket-facts">
+                                <span><span class="fact">Seat</span><span class="mono">#{empty bookView.seat ? 'not chosen' : bookView.seat}</span></span>
+                                <span><span class="fact">Passenger</span><span class="mono">#{visitor.userId.toUpperCase()}</span></span>
+                                <h:panelGroup rendered="#{bookView.booking != null}">
+                                    <span class="fact">Booking</span><span class="mono">#{bookView.booking.id.substring(0, 8)}</span>
+                                </h:panelGroup>
+                                <h:outputText value="#{bookView.stamp}" rendered="#{bookView.stamp != null}"
+                                              styleClass="#{bookView.stamp == 'CONFIRMED' ? 'stamp stamp-good' : 'stamp stamp-bad'}"/>
+                            </div>
+                            <ol class="#{bookView.details ? 'steps steps-detailed' : 'steps'}">
+                                <ui:repeat value="#{bookView.progress.steps}" var="st">
+                                    <li class="#{st.css}">
+                                        <span class="dot-line">
+                                            <span class="dot"></span>
+                                            <h:panelGroup styleClass="#{st.line}" rendered="#{not st.last}"/>
+                                        </span>
+                                        <span class="step-label">#{st.label}</span>
+                                        <h:outputText value="#{st.tech}" styleClass="step-tech" rendered="#{bookView.details}"/>
+                                    </li>
+                                </ui:repeat>
+                            </ol>
+                            <label class="details">
+                                <h:selectBooleanCheckbox value="#{bookView.details}">
+                                    <f:ajax render="@form"/>
+                                </h:selectBooleanCheckbox>
+                                Show what happens behind the scenes
+                            </label>
+                        </div>
+                        <div class="ticket-foot">
+                            <span>
+                                <span class="cap">TOTAL</span>
+                                <span class="total">#{bookView.total}</span>
+                            </span>
+                            <h:commandButton value="#{bookView.bookLabel}" styleClass="btn btn-primary" action="#{bookView.book}">
+                                <f:ajax render="@form"/>
+                            </h:commandButton>
+                        </div>
+                    </section>
+
+                    <p class="#{bookView.messageCss}" role="status">#{bookView.message}</p>
+                    <h:panelGroup rendered="#{bookView.stamp == 'CONFIRMED'}">
+                        <a class="small" href="#{request.contextPath}/trips">See it in My trips →</a>
+                    </h:panelGroup>
+                    <h:panelGroup layout="block" styleClass="offline" rendered="#{bookView.busy and not bookView.live}">
+                        Live updates are off right now.
+                        <h:commandLink value="Check status" action="#{bookView.refresh}">
+                            <f:ajax render="@form"/>
+                        </h:commandLink>
+                    </h:panelGroup>
+                </h:panelGroup>
+            </div>
+        </h:form>
+    </ui:define>
+</ui:composition>
