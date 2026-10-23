@@ -2,6 +2,10 @@ server:
   port: 8082
 
 spring:
+  cloud:
+    loadbalancer:
+      cache:
+        ttl: 5s   # the load balancer keeps its own copy of the registry (default 35 s)
   application:
     name: booking-service
 
@@ -40,5 +44,8 @@ easytravel:
 
 eureka:
   client:
+    # Re-fetch the registry every 5 s (default 30 s), so a freshly started stack
+    # routes requests within seconds instead of answering 503 for half a minute.
+    registry-fetch-interval-seconds: 5
     service-url:
       defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}

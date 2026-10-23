@@ -72,7 +72,7 @@ Needs Docker Desktop. The images build the code themselves, so Java and Maven ar
 docker compose up --build -d
 ```
 
-Give it about a minute for the services to register with Eureka, then:
+Give it about 15 seconds for the services to start and register with Eureka (until then the gateway answers 503), then:
 
 - API: http://localhost:8080
 - Eureka dashboard: http://localhost:8761

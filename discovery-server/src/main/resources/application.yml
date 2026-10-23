@@ -13,3 +13,7 @@ eureka:
     # behavior off. Classic gotcha: forget these and the log fills with connection errors.
     register-with-eureka: false
     fetch-registry: false
+  server:
+    # The registry answer is cached and rebuilt every 30 s by default, so a service
+    # that just registered stays invisible for up to 30 s. 5 s suits a demo stack.
+    response-cache-update-interval-ms: 5000
